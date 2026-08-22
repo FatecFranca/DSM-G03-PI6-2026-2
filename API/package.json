@@ -1,0 +1,48 @@
+{
+  "name": "api-chamados-publicos",
+  "version": "1.0.0",
+  "description": "API Chamados Públicos",
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "prisma db seed"
+  },
+  "keywords": [
+    "chamados",
+    "publicos",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "6.18.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.18.2",
+    "fs": "^0.0.1-security",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.3",
+    "nodemailer": "^7.0.12",
+    "path": "^0.12.7",
+    "python-shell": "^5.0.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "url": "^0.11.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "prisma": "6.18.0"
+  }
+}

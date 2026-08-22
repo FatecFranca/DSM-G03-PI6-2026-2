@@ -1,0 +1,22 @@
+1:Outros Problemas com Postes
+2:Luz Queimada Poste
+3:Problema com Animal Doméstico
+4:Problema com Animal Selvagem
+5:Animal Perdido
+6:Remoção de Árvore ou Tocos
+7:Poste caido
+8:Divisor de Pista
+9:Árvore ou Galhos Caídos
+10:Solicitação de Poda
+11:Solicitação de Plantio
+12:Lixo e Detritos
+13:Manutenção da Área Verde
+14:Sugestões para o Parque/Praça
+15:Equipamento Quebrado no Parque/Praça
+16:Solicitações Gerais para o Parque/Praça
+17:Animal Morto no Parque/Praça
+18:Grafite em lugares públicos
+19:Luz Queimada
+20:Portões Trancados
+21:Manutenção do Cemitério
+22:Outros

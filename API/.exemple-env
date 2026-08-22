@@ -1,0 +1,26 @@
+# Acesso ao BD PostGreSQL
+DATABASE_URL="postgresql://usuario:senha@ip-local:porta/nome_do_banco_de_dados?schema=public"
+
+# Porta usada na API
+PORT=5000
+
+# Status (development/production)
+NODE_ENV=development
+
+JWT_SECRET=seu-segredo-jwt-aqui
+
+PEPPER_SENHA_ADMIN=seu_pepper
+
+PEPPER_SENHA_GESTOR=seu_pepper
+
+PEPPER_SENHA_TECNICO=seu_pepper
+
+PEPPER_SENHA_PESSOA=seu_pepper
+
+DOC_API_SERVERS_URLS=http://servidor1.com,http://servidor2.com
+
+DOC_API_SERVERS_DESCRIPTIONS=Servidor de tal,Servidor de cal
+
+CORS_ORIGIN=http://servidor3.com,http://servidor4.com
+
+PYTHON=python

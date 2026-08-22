@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Atividade de Chamado - Documentação</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Navigation */
+        .nav-bar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .nav-logo svg {
+            width: 24px;
+            height: 24px;
+            fill: #667eea;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-link {
+            color: #4a5568;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: #f7fafc;
+            color: #667eea;
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        /* Header */
+        .api-header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header-title h1 {
+            font-size: 2.5em;
+            color: #2d3748;
+        }
+
+        .header-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-icon svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+
+        .api-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.9em;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin: 0 5px;
+        }
+
+        .base-url-section {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+            border: 1px solid #e2e8f0;
+        }
+
+        .base-url-section code {
+            background: #2d3748;
+            color: #a0e9ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            display: inline-block;
+        }
+
+        /* Quick Stats */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin: 40px 0;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Endpoint Groups */
+        .endpoint-group {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .group-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .group-title h2 {
+            color: #2d3748;
+            font-size: 1.8em;
+        }
+
+        .group-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .group-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* Endpoint Card */
+        .endpoint-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .endpoint-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .endpoint-method {
+            padding: 6px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }
+
+        .method-post { background: #e8f5e9; color: #2e7d32; }
+        .method-get { background: #e3f2fd; color: #1976d2; }
+        .method-put { background: #fff3e0; color: #f57c00; }
+        .method-delete { background: #ffebee; color: #c62828; }
+
+        .endpoint-path {
+            font-family: monospace;
+            font-size: 1.2em;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .endpoint-description {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        .permission-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .tecnico-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #e0f2fe;
+            color: #0284c7;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        /* Details Grid */
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .details-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .details-section h4 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .param-table {
+            width: 100%;
+        }
+
+        .param-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .param-row2 {
+            display: grid;
+            grid-template-columns: 190px 1fr;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .param-row:last-child {
+            border-bottom: none;
+        }
+
+        .param-row2:last-child {
+            border-bottom: none;
+        }
+
+        .param-name {
+            font-family: monospace;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .param-desc {
+            color: #718096;
+        }
+
+        .required {
+            color: #e53e3e;
+            font-size: 0.85em;
+            margin-left: 5px;
+        }
+
+        .status-code {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9em;
+            margin: 5px;
+        }
+
+        .code-200 { background: #e8f5e9; color: #2e7d32; }
+        .code-201 { background: #e8f5e9; color: #2e7d32; }
+        .code-400 { background: #ffebee; color: #c62828; }
+        .code-401 { background: #ffebee; color: #c62828; }
+        .code-403 { background: #ffebee; color: #c62828; }
+        .code-404 { background: #ffebee; color: #c62828; }
+        .code-409 { background: #ffebee; color: #c62828; }
+        .code-500 { background: #ffebee; color: #c62828; }
+
+        .example-box {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .example-box pre {
+            color: #a0e9ff;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .note-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            color: #92400e;
+        }
+
+        .warning-box {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            color: #b91c1c;
+        }
+
+        .info-box {
+            background: #e0f2fe;
+            border-left: 4px solid #0284c7;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            color: #0369a1;
+        }
+
+        .status-permitido {
+            display: inline-block;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        /* Footer */
+        .api-footer {
+            margin-top: 60px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(-5px);
+        }
+
+        @media (max-width: 768px) {
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .nav-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <div class="nav-bar">
+            <div class="nav-logo">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2z"/>
+                </svg>
+                <span>API Docs</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Início</a>
+                <a href="pessoa.html" class="nav-link">Pessoa</a>
+                <a href="tecnico.html" class="nav-link">Técnico</a>
+                <a href="chamado.html" class="nav-link">Chamado</a>
+                <a href="atividade.html" class="nav-link active">Atividade</a>
+                <a href="tipoChamado.html" class="nav-link">Tipo Chamado</a>
+            </div>
+        </div>
+
+        <!-- Back to Home -->
+        <a href="index.html" class="back-link">← Voltar para página inicial</a>
+
+        <!-- Header -->
+        <div class="api-header">
+            <div class="header-title">
+                <div class="header-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm4 12h-4v3l-5-5 5-5v3h4v4z"/>
+                    </svg>
+                </div>
+                <h1>📝 Atividade de Chamado - API Documentation</h1>
+            </div>
+            
+            <p>Gerenciamento de atividades e histórico de chamados. Endpoints para registro, consulta e estatísticas das ações realizadas pelos técnicos.</p>
+            
+            <div>
+                <span class="api-badge">REST API</span>
+                <span class="api-badge">Autenticação JWT</span>
+                <span class="api-badge">v1.0.0</span>
+            </div>
+
+            <div class="base-url-section">
+                <strong>🔗 Base URL:</strong>
+                <code>http://localhost:3001/api/atividade</code>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-value">8</div>
+                <div class="stat-label">Endpoints</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">4</div>
+                <div class="stat-label">Níveis de Acesso</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">CRUD</div>
+                <div class="stat-label">Operações</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">3</div>
+                <div class="stat-label">Status Permitidos</div>
+            </div>
+        </div>
+
+        <!-- Status Permitidos -->
+        <div class="endpoint-group">
+            <div class="group-title">
+                <div class="group-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <h2>Status Permitidos para Atividades</h2>
+            </div>
+
+            <div class="endpoint-card">
+                <p style="margin-bottom: 15px;">Atividades só podem ser registradas em chamados com os seguintes status:</p>
+                <div>
+                    <span class="status-permitido">ATRIBUIDO</span>
+                    <span class="status-permitido">EMATENDIMENTO</span>
+                </div>
+                
+                <div class="info-box" style="margin-top: 20px;">
+                    <strong>🤖 Comportamento Automático:</strong>
+                    <p style="margin-top: 5px;">Ao registrar a primeira atividade em um chamado com status <strong>ATRIBUIDO</strong>, o sistema automaticamente atualiza o status para <strong>EMATENDIMENTO</strong>.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoints de Listagem e Consulta -->
+        <div class="endpoint-group">
+            <div class="group-title">
+                <div class="group-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
+                    </svg>
+                </div>
+                <h2>Endpoints de Consulta</h2>
+            </div>
+
+            <!-- Listar por Chamado -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-path">/chamado/{chamadoId}</span>
+                    <span class="permission-badge">🔑 PESSOA | TÉCNICO | GESTOR</span>
+                </div>
+                <p class="endpoint-description">Lista todas as atividades de um chamado específico, com ordenação por data.</p>
+                
+                <div class="details-grid">
+                    <div class="details-section">
+                        <h4>📥 Parameters</h4>
+                        <div class="param-table">
+                            <div class="param-row">
+                                <span class="param-name">chamadoId<span class="required">*</span></span>
+                                <span class="param-desc">ID do chamado (path)</span>
+                            </div>
+                            <div class="param-row">
+                                <span class="param-name">ordem</span>
+                                <span class="param-desc">asc ou desc (default: desc)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📤 Responses</h4>
+                        <div>
+                            <span class="status-code code-200">200 OK</span>
+                            <span class="status-code code-400">400 Bad Request</span>
+                            <span class="status-code code-401">401 Unauthorized</span>
+                            <span class="status-code code-403">403 Forbidden</span>
+                            <span class="status-code code-404">404 Not Found</span>
+                        </div>
+
+                        <div class="example-box">
+                            <pre>{
+  "data": [
+    {
+      "AtividadeId": "grrbauirebv74h4bo87vb4",
+      "ChamadoId": "bvrwhbgvoybwergvb874v8o",
+      "TecnicoId": "fbngunbpuipsfvbsvegb98hg",
+      "AtividadeDescricao": "Iniciando atendimento...",
+      "AtividadeDtRealizacao": "2026-03-18T10:30:00.000Z",
+      "Tecnico": {
+        "TecnicoId": "rgb085g5hngp94n589h495nb945n",
+        "TecnicoNome": "João Técnico"
+      }
+    }
+  ],
+  "total": 5,
+  "chamado": {
+    "ChamadoId": "bvrwhbgvoybwergvb874v8o",
+    "ChamadoTitulo": "Computador não liga",
+    "ChamadoStatus": "EMATENDIMENTO"
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note-box">
+                    <strong>🔍 Regras de Visualização:</strong>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li><strong>PESSOA:</strong> Apenas atividades de seus próprios chamados</li>
+                        <li><strong>TÉCNICO:</strong> Atividades de chamados da sua unidade ou da sua equipe</li>
+                        <li><strong>GESTOR:</strong> Atividades de chamados da sua unidade</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Listar por Técnico -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-path">/tecnico/{tecnicoId}</span>
+                    <span class="permission-badge">🔑 TÉCNICO* | GESTOR</span>
+                </div>
+                <p class="endpoint-description">Lista atividades realizadas por um técnico, com filtro por período.</p>
+                
+                <div class="details-grid">
+                    <div class="details-section">
+                        <h4>📥 Parameters</h4>
+                        <div class="param-table">
+                            <div class="param-row">
+                                <span class="param-name">tecnicoId<span class="required">*</span></span>
+                                <span class="param-desc">ID do técnico (path)</span>
+                            </div>
+                            <div class="param-row">
+                                <span class="param-name">dataInicio</span>
+                                <span class="param-desc">YYYY-MM-DD</span>
+                            </div>
+                            <div class="param-row">
+                                <span class="param-name">dataFim</span>
+                                <span class="param-desc">YYYY-MM-DD</span>
+                            </div>
+                            <div class="param-row">
+                                <span class="param-name">pagina</span>
+                                <span class="param-desc">Número da página (default: 1)</span>
+                            </div>
+                            <div class="param-row">
+                                <span class="param-name">limite</span>
+                                <span class="param-desc">Itens por página (default: 10)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📤 Responses</h4>
+                        <div>
+                            <span class="status-code code-200">200 OK</span>
+                            <span class="status-code code-400">400 Bad Request</span>
+                            <span class="status-code code-401">401 Unauthorized</span>
+                            <span class="status-code code-403">403 Forbidden</span>
+                            <span class="status-code code-404">404 Not Found</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note-box">
+                    <strong>📋 Regras de Acesso:</strong>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li><strong>TÉCNICO:</strong> Pode ver apenas suas próprias atividades</li>
+                        <li><strong>GESTOR:</strong> Pode ver atividades de técnicos da sua unidade</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Estatísticas por Chamado -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-path">/chamado/{chamadoId}/estatisticas</span>
+                    <span class="permission-badge">🔑 PESSOA | TÉCNICO | GESTOR</span>
+                </div>
+                <p class="endpoint-description">Retorna estatísticas de atividades de um chamado.</p>
+                
+                <div class="details-grid">
+                    <div class="details-section">
+                        <h4>📥 Parameters</h4>
+                        <div class="param-table">
+                            <div class="param-row">
+                                <span class="param-name">chamadoId<span class="required">*</span></span>
+                                <span class="param-desc">ID do chamado (path)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📤 Responses</h4>
+                        <div>
+                            <span class="status-code code-200">200 OK</span>
+                            <span class="status-code code-400">400 Bad Request</span>
+                            <span class="status-code code-401">401 Unauthorized</span>
+                            <span class="status-code code-403">403 Forbidden</span>
+                            <span class="status-code code-404">404 Not Found</span>
+                        </div>
+
+                        <div class="example-box">
+                            <pre>{
+  "data": {
+    "chamadoId": "bvrwhbgvoybwergvb874v8o",
+    "totalAtividades": 8,
+    "tecnicosEnvolvidos": 3,
+    "primeiraAtividade": {
+      "data": "2026-03-18T10:30:00.000Z",
+      "tecnicoId": "fbnoe57bgb5gb487b5g7b5obog8"
+    },
+    "ultimaAtividade": {
+      "data": "2026-03-18T15:45:00.000Z",
+      "tecnicoId": "fvngp954ngn57n5gn59gbbp5bgp9"
+    }
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buscar por ID -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-get">GET</span>
+                    <span class="endpoint-path">/{id}</span>
+                    <span class="permission-badge">🔑 PESSOA | TÉCNICO | GESTOR</span>
+                </div>
+                <p class="endpoint-description">Busca uma atividade específica por ID, com todos os detalhes do chamado e técnico.</p>
+                
+                <div class="details-grid">
+                    <div class="details-section">
+                        <h4>📥 Path Parameters</h4>
+                        <div class="param-table">
+                            <div class="param-row">
+                                <span class="param-name">id<span class="required">*</span></span>
+                                <span class="param-desc">ID da atividade</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📤 Responses</h4>
+                        <div>
+                            <span class="status-code code-200">200 OK</span>
+                            <span class="status-code code-400">400 Bad Request</span>
+                            <span class="status-code code-401">401 Unauthorized</span>
+                            <span class="status-code code-403">403 Forbidden</span>
+                            <span class="status-code code-404">404 Not Found</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoints de Manipulação (Apenas Técnicos) -->
+        <div class="endpoint-group">
+            <div class="group-title">
+                <div class="group-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                </div>
+                <h2>Endpoints de Manipulação (Apenas Técnicos)</h2>
+            </div>
+
+            <!-- Criar Atividade -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-post">POST</span>
+                    <span class="endpoint-path">/chamado/{chamadoId}</span>
+                    <span class="tecnico-badge">🔧 APENAS TÉCNICO</span>
+                </div>
+                <p class="endpoint-description">Registra uma nova atividade em um chamado. Apenas técnicos da equipe responsável.</p>
+                
+                <div class="details-grid">
+                    <div class="details-section">
+                        <h4>📥 Request</h4>
+                        <div class="param-table">
+                            <div class="param-row">
+                                <span class="param-name">chamadoId<span class="required">*</span></span>
+                                <span class="param-desc">ID do chamado (path)</span>
+                            </div>
+                            <div class="param-row">
+                                <span class="param-name">AtividadeDescricao<span class="required">*</span></span>
+                                <span class="param-desc">Descrição da atividade realizada</span>
+                            </div>
+                        </div>
+
+                        <div class="example-box">
+                            <pre>{
+  "AtividadeDescricao": "Realizada análise inicial do problema. Identificado que o cabo de rede está danificado."
+}</pre>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📤 Responses</h4>
+                        <div>
+                            <span class="status-code code-201">201 Created</span>
+                            <span class="status-code code-400">400 Bad Request</span>
+                            <span class="status-code code-401">401 Unauthorized</span>
+                            <span class="status-code code-403">403 Forbidden</span>
+                            <span class="status-code code-404">404 Not Found</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ Validações Rigorosas:</strong>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li>Técnico deve estar ATIVO</li>
+                        <li>Chamado deve estar com status: ATRIBUIDO ou EMATENDIMENTO</li>
+                        <li>Chamado deve ter uma equipe atribuída</li>
+                        <li>Técnico deve pertencer à equipe responsável pelo chamado</li>
+                        <li>Técnico deve ser da mesma unidade do chamado</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Alterar Atividade -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-put">PUT</span>
+                    <span class="endpoint-path">/{id}</span>
+                    <span class="tecnico-badge">🔧 APENAS TÉCNICO (autor)</span>
+                </div>
+                <p class="endpoint-description">Altera a descrição de uma atividade. Apenas o técnico que criou pode alterar.</p>
+                
+                <div class="details-grid">
+                    <div class="details-section">
+                        <h4>📥 Request</h4>
+                        <div class="param-table">
+                            <div class="param-row">
+                                <span class="param-name">id<span class="required">*</span></span>
+                                <span class="param-desc">ID da atividade (path)</span>
+                            </div>
+                            <div class="param-row">
+                                <span class="param-name">AtividadeDescricao<span class="required">*</span></span>
+                                <span class="param-desc">Nova descrição da atividade</span>
+                            </div>
+                        </div>
+
+                        <div class="example-box">
+                            <pre>{
+  "AtividadeDescricao": "Descrição atualizada da atividade..."
+}</pre>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📤 Responses</h4>
+                        <div>
+                            <span class="status-code code-200">200 OK</span>
+                            <span class="status-code code-400">400 Bad Request</span>
+                            <span class="status-code code-401">401 Unauthorized</span>
+                            <span class="status-code code-403">403 Forbidden</span>
+                            <span class="status-code code-404">404 Not Found</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ Restrições:</strong>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li>Apenas o técnico autor da atividade pode alterá-la</li>
+                        <li>Técnico deve estar ATIVO</li>
+                        <li>Chamado deve estar em andamento (ATRIBUIDO, EMATENDIMENTO, ANALISADO)</li>
+                        <li>Não é possível alterar atividades de chamados concluídos ou cancelados</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Excluir Atividade -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="endpoint-method method-delete">DELETE</span>
+                    <span class="endpoint-path">/{id}</span>
+                    <span class="tecnico-badge">🔧 APENAS TÉCNICO (autor)</span>
+                </div>
+                <p class="endpoint-description">Exclui uma atividade. Apenas o técnico que criou pode excluir.</p>
+                
+                <div class="details-grid">
+                    <div class="details-section">
+                        <h4>📥 Path Parameters</h4>
+                        <div class="param-table">
+                            <div class="param-row">
+                                <span class="param-name">id<span class="required">*</span></span>
+                                <span class="param-desc">ID da atividade</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📤 Responses</h4>
+                        <div>
+                            <span class="status-code code-200">200 OK</span>
+                            <span class="status-code code-400">400 Bad Request</span>
+                            <span class="status-code code-401">401 Unauthorized</span>
+                            <span class="status-code code-403">403 Forbidden</span>
+                            <span class="status-code code-404">404 Not Found</span>
+                        </div>
+
+                        <div class="example-box">
+                            <pre>{
+  "message": "Atividade excluída com sucesso"
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ Mesmas restrições da alteração:</strong>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li>Apenas o técnico autor pode excluir</li>
+                        <li>Técnico deve estar ATIVO</li>
+                        <li>Chamado deve estar em andamento</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modelo de Dados -->
+        <div class="endpoint-group">
+            <div class="group-title">
+                <div class="group-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+                    </svg>
+                </div>
+                <h2>Modelo de Dados - Atividade de Chamado</h2>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="param-table">
+                    <div class="param-row2">
+                        <span class="param-name">AtividadeId</span>
+                        <span class="param-desc">String - ID único da atividade</span>
+                    </div>
+                    <div class="param-row2">
+                        <span class="param-name">ChamadoId</span>
+                        <span class="param-desc">String - ID do chamado (FK)</span>
+                    </div>
+                    <div class="param-row2">
+                        <span class="param-name">TecnicoId</span>
+                        <span class="param-desc">String - ID do técnico (FK)</span>
+                    </div>
+                    <div class="param-row2">
+                        <span class="param-name">AtividadeDescricao</span>
+                        <span class="param-desc">Text - Descrição detalhada da atividade</span>
+                    </div>
+                    <div class="param-row2">
+                        <span class="param-name">AtividadeDtRealizacao</span>
+                        <span class="param-desc">DateTime - Data e hora da realização</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Códigos de Erro -->
+        <div class="endpoint-group">
+            <div class="group-title">
+                <div class="group-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                </div>
+                <h2>Códigos de Erro Específicos</h2>
+            </div>
+
+            <div class="endpoint-card">
+                <div class="param-table">
+                    <div class="param-row">
+                        <span class="param-name">400</span>
+                        <span class="param-desc">Descrição obrigatória, status do chamado não permite atividades</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">401</span>
+                        <span class="param-desc">Token não fornecido ou inválido</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">403</span>
+                        <span class="param-desc">Técnico inativo, não pertence à equipe, unidade diferente, não é autor da atividade</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">404</span>
+                        <span class="param-desc">Atividade, chamado ou técnico não encontrado</span>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin-top: 20px;">
+                    <strong>📌 Resumo de Permissões:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>CRIAR:</strong> Técnico ATIVO, da equipe responsável, chamado em andamento</li>
+                        <li><strong>ALTERAR:</strong> Técnico autor ATIVO, chamado em andamento</li>
+                        <li><strong>EXCLUIR:</strong> Técnico autor ATIVO, chamado em andamento</li>
+                        <li><strong>VISUALIZAR:</strong> Pessoa (próprios chamados), Técnico (unidade/equipe), Gestor (unidade)</li>
+                    </ul>
+                </div>
+
+                <div class="note-box" style="margin-top: 20px;">
+                    <strong>🔍 Observação:</strong> A API não permite criar, alterar ou excluir atividades em chamados já concluídos (CONCLUIDO, CANCELADO, RECUSADO) para manter a integridade do histórico.
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="api-footer">
+            <p>© 2026 Sistema de Gestão de Chamados - API Documentation v1.0.0</p>
+        </div>
+    </div>
+
+    <script>
+        // Smooth scroll para links internos
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+//prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Tabelas (Models)
+model Administrador {
+  AdministradorId       Int    @id @default(autoincrement())
+  AdministradorUsuario  String @db.VarChar(20) @unique
+  AdministradorSenha    String
+}
+
+model Unidade {
+  UnidadeId             Int             @id @default(autoincrement())
+  UnidadeNome           String          @db.VarChar(200)
+  UnidadeStatus         UnidadeStatus
+  UnidadeDtCadastro     DateTime        @default(now())
+  UnidadeEmail          String?         @db.VarChar(256)
+  UnidadeTelefone       String?         @db.VarChar(15)
+
+  Gestor                Gestor[]
+  Departamento          Departamento[]
+  Pessoa                Pessoa[]
+  TipoSuporteUnidade    TipoSuporteUnidade[]
+  Chamado               Chamado[]
+  Equipe                Equipe[]
+  Tecnico               Tecnico[]
+}
+
+model Gestor {
+  GestorId              String        @id @default(uuid())
+  UnidadeId             Int
+  GestorNome            String        @db.VarChar(100)
+  GestorEmail           String?       @db.VarChar(256)
+  GestorTelefone        String?       @db.VarChar(15)
+  GestorCPF             String        @db.VarChar(15)
+  GestorUsuario         String        @db.VarChar(20) @unique
+  GestorSenha           String
+  GestorNivel           GestorNivel
+  GestorStatus          GestorStatus
+  GestorDtCadastro      DateTime      @default(now())
+
+  Unidade               Unidade       @relation(fields: [UnidadeId], references: [UnidadeId])
+}
+
+model Departamento {
+  DepartamentoId         String               @id @default(uuid())
+  UnidadeId              Int
+  DepartamentoNome       String               @db.VarChar(100)
+  DepartamentoDtCadastro DateTime             @default(now())
+  DepartamentoStatus     DepartamentoStatus
+
+  Unidade               Unidade               @relation(fields: [UnidadeId], references: [UnidadeId])
+  Tecnico               Tecnico[]
+}
+
+model Pessoa {
+  PessoaId              String        @id @default(uuid())
+  UnidadeId             Int
+  PessoaNome            String        @db.VarChar(100)
+  PessoaEmail           String?       @db.VarChar(256)
+  PessoaTelefone        String?       @db.VarChar(15)
+  PessoaCPF             String        @db.VarChar(15)   @unique
+  PessoaSenha           String
+  PessoaStatus          PessoaStatus
+  PessoadtCadastro      DateTime      @default(now())
+
+  Unidade               Unidade       @relation(fields: [UnidadeId], references: [UnidadeId])
+  Chamado               Chamado[]
+}
+
+model Tecnico {
+  TecnicoId             String              @id @default(uuid())
+  DepartamentoId        String
+  UnidadeId             Int
+  TecnicoNome           String              @db.VarChar(100)
+  TecnicoEmail          String?             @db.VarChar(256)
+  TecnicoTelefone       String?             @db.VarChar(15)
+  TecnicoCPF            String              @db.VarChar(15)
+  TecnicoUsuario        String              @db.VarChar(20) @unique
+  TecnicoSenha          String
+  TecnicoStatus         TecnicoStatus
+  TecnicoDtCadastro     DateTime            @default(now())
+
+  Departamento          Departamento        @relation(fields: [DepartamentoId], references: [DepartamentoId])
+  Unidade               Unidade             @relation(fields: [UnidadeId], references: [UnidadeId])
+  TecnicoEquipe         TecnicoEquipe[]
+  AtividadeChamado      AtividadeChamado[]
+}
+
+model Equipe {
+  EquipeId              String          @id @default(uuid())
+  UnidadeId             Int
+  EquipeNome            String          @db.VarChar(100)
+  EquipeDescricao       String
+  EquipeDtCadastro      DateTime        @default(now())
+  EquipeStatus          EquipeStatus
+
+  Unidade               Unidade         @relation(fields: [UnidadeId], references: [UnidadeId])
+  TecnicoEquipe         TecnicoEquipe[]
+  Chamado               Chamado[]
+}
+
+model TecnicoEquipe {
+  TecEquId              String        @id @default(uuid())
+  EquipeId              String
+  TecnicoId             String
+  TecEquStatus          TecEquStatus
+  TecEquDtVin           DateTime?     @default(now())
+  TecEquDtIna           DateTime?
+
+  Equipe                Equipe        @relation(fields: [EquipeId], references: [EquipeId])
+  Tecnico               Tecnico       @relation(fields: [TecnicoId], references: [TecnicoId])
+}
+
+model TipoSuporte {
+  TipSupId              Int           @id @default(autoincrement())
+  TipSupNom             String        @db.VarChar(100)
+  TipSupDtCadastro      DateTime      @default(now())
+  TipSupStatus          TipSupStatus  @default(BLOQUEADOIA)
+  TipSupDescricao       String?
+
+  Chamado               Chamado[]
+  TipoSuporteUnidade    TipoSuporteUnidade[]
+}
+
+model TipoSuporteUnidade {
+  TipSupUniId           String            @id @default(uuid())
+  TipSupId              Int
+  UnidadeId             Int
+  TipSupUniStatus       TipSupUniStatus
+  TipSupUniDtVin        DateTime?         @default(now())
+  TipSupUniDtIna        DateTime?
+  TipoSuporte           TipoSuporte       @relation(fields: [TipSupId], references: [TipSupId])
+  Unidade               Unidade           @relation(fields: [UnidadeId], references: [UnidadeId])
+}
+
+model Chamado {
+  ChamadoId                 String            @id @default(uuid())
+  ChamadoN1                 Int               // Número do chamado apresentado combinado com o Numero2
+  ChamadoN2                 Int               // Número do chamado apresentado combinado com o Numero1 (N1 - N2, Ex: 1 - 145236987)
+  TipSupId                  Int?              // IA Ira identificar qual o tipo de suporte
+  PessoaId                  String
+  EquipeId                  String?
+  UnidadeId                 Int
+  ChamadoTitulo             String?           @db.VarChar(100)  // Gestor pode colocar
+  ChamadoDescricaoInicial   String
+  ChamadoDescricaoFormatada String?           // Descrição mais detalhada pelo gestor
+  ChamadoDiasComProblema    Int               // Pessoa vai informar quantos dias tem o problema
+  ChamadoRiscoVidaHumana    Boolean           // Pessoa vai informar se tem risco de vida humana
+  ChamadoRiscoVidaAnimal    Boolean           // Pessoa vai informar se tem risco de vida animal
+  ChamadoBloqueioVia        Boolean           // Pessoa vai informar se tem bloqueio de via
+  ChamadoDtAbertura         DateTime          @default(now())
+  ChamadoDtPlanejada        DateTime?         // Gestor vai propor
+  ChamadoDtEncerramento     DateTime?  
+  ChamadoPrioridade         Int?              // De 1 a 10
+  ChamadoUrgencia           ChamadoUrgencia?  // IA vai classificar
+  ChamadoStatus             ChamadoStatus?    @default(PROCESSAMENTO)
+
+  TipoSuporte               TipoSuporte?        @relation(fields: [TipSupId], references: [TipSupId])
+  Pessoa                    Pessoa              @relation(fields: [PessoaId], references: [PessoaId])
+  Equipe                    Equipe?             @relation(fields: [EquipeId], references: [EquipeId])
+  Unidade                   Unidade             @relation(fields: [UnidadeId], references: [UnidadeId])
+  AtividadeChamado          AtividadeChamado[]
+  HistoricoChamado          HistoricoChamado[]
+}
+
+model HistoricoChamado {
+  HistChamadoId          String     @id @default(uuid())
+  ChamadoId              String
+  HistChamadoDescricao   String
+  HistChamadoDt          DateTime   @default(now())
+  HistChamadoUsuarioVer  UsuarioVer @default(TODOS)
+
+  Chamado Chamado  @relation(fields: [ChamadoId], references: [ChamadoId])
+}
+
+model AtividadeChamado {
+  AtividadeId           String      @id @default(uuid())
+  ChamadoId             String
+  TecnicoId             String
+  AtividadeDescricao    String
+  AtividadeUsuarioVer   UsuarioVer  @default(TODOS)
+  AtividadeDtRealizacao DateTime    @default(now())
+
+  Chamado               Chamado  @relation(fields: [ChamadoId], references: [ChamadoId])
+  Tecnico               Tecnico  @relation(fields: [TecnicoId], references: [TecnicoId])
+}
+
+model Log {
+  LogId           String          @id @default(uuid())
+  LogChave        String?
+  LogUsuId        String?            
+  LogTipoRelacao  TipoRelacao     @default(OUTRO)
+  LogAcao         String          @db.VarChar(50)
+  LogDetalhe      String
+  LogData         DateTime        @default(now())
+
+  @@index([LogData])
+  @@index([LogAcao])
+  @@index([LogTipoRelacao, LogData])
+  @@index([LogUsuId, LogData])
+  @@index([LogAcao, LogData])
+}
+
+model Notificacao {
+  NotificacaoId             String              @id @default(uuid())
+  NotificacaoUsuId          String?
+  NotificacaoAdicionalId    String?             // Pode ser usado para armazenar um ID adicional (chamado)
+  NotificacaoTipoRelacao    TipoRelacao         @default(OUTRO)
+  NotificacaoData           DateTime            @default(now())
+  NotificacaoTipo           String              @db.VarChar(50)
+  NotificacaoTitulo         String              @db.VarChar(100)
+  NotificacaoMensagem       String
+  NotificacaoStatus         NotificacaoStatus   @default(ENVIADO) // ENVIADO, EXIBIDO, LIDO
+  NotificacaoNivel          NotificacaoNivel    @default(NORMAL)  // BAIXA, NORMAL, ALTA, URGENTE
+
+  @@index([NotificacaoUsuId, NotificacaoStatus])       
+  @@index([NotificacaoAdicionalId, NotificacaoTipo])      
+  @@index([NotificacaoStatus, NotificacaoData])
+  @@index([NotificacaoData])                   
+  @@index([NotificacaoTipo])                   
+  @@index([NotificacaoTipoRelacao, NotificacaoStatus])    
+  @@index([NotificacaoUsuId, NotificacaoData])         
+}
+
+
+// Enums
+enum UnidadeStatus {
+  ATIVA
+  INATIVA
+  BLOQUEADA
+}
+
+enum DepartamentoStatus {
+  ATIVO
+  INATIVO
+  BLOQUEADO
+}
+
+enum PessoaStatus {
+  ATIVA
+  INATIVA
+  BLOQUEADA
+}
+
+enum GestorNivel {
+  COMUM
+  ADMINUNIDADE
+}
+
+enum GestorStatus {
+  ATIVO
+  INATIVO
+  BLOQUEADO
+}
+
+enum TecnicoStatus {
+  ATIVO
+  INATIVO
+  BLOQUEADO
+}
+
+enum EquipeStatus {
+  ATIVA
+  INATIVA
+}
+
+enum TecEquStatus {
+  ATIVO
+  INATIVO
+}
+
+enum TipSupUniStatus {
+  ATIVO
+  INATIVO
+}
+
+enum TipSupStatus {
+  ATIVO
+  INATIVO
+  BLOQUEADOIA
+}
+
+enum ChamadoStatus {
+  PENDENTE        // 2 - Sistema clasisifocu informações base, pensente de análise de gestor
+  ANALISADO       // 3 - Gestor analisou
+  ATRIBUIDO       // 4 - Gestor atribuiu a uma equipe
+  EMATENDIMENTO   // 5 - Equipe iniciou o atendimento
+  CONCLUIDO       // 6 - Equipe concluiu o trabalho
+  CANCELADO       // 7 - Pessoa que abriu cancelou
+  RECUSADO        // 8 - Gestor Recusou
+  FALTAINFORMACAO // 9 - Gestor Identifivou que falta informação, gestor precisa solitar detalhes para pessoa que abriu
+  PROCESSAMENTO   // 1 - Pessoa acabou de abrir, em processamento sistema (Tipo, Riscos e Urgência)
+}
+
+enum ChamadoUrgencia {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum TipoRelacao {
+  PESSOA
+  TECNICO
+  GESTOR
+  ADMINISTRADOR
+  SISTEMA
+  OUTRO
+}
+
+enum NotificacaoStatus {
+  ENVIADO
+  EXIBIDO
+  LIDO
+  EXCLUIDO
+}
+
+enum NotificacaoNivel {
+  BAIXA
+  NORMAL
+  ALTA
+  URGENTE
+}
+
+enum UsuarioVer {
+  TODOS
+  GESTOR
+  ADMUNIDADE
+  ADMSISTEMA
+  TECNICO
+  PESSOA
+  GESTEC
+}
