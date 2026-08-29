@@ -1,12 +1,14 @@
 // src/controllers/unidadeController.js
 const prisma = require('../prisma.js');
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { gravarLog } = require('../utils/logGrava.js');
 
 class UnidadeController {
 
     // Cadastrar nova unidade (apenas ADMINISTRADOR)
     async cadastrarUnidade(req, res) {
         try {
-            const { UnidadeNome, UnidadeStatus } = req.body;
+            const { UnidadeNome, UnidadeStatus, UnidadeTelefone, UnidadeEmail } = req.body;
 
             // Verificar se o usuário é ADMINISTRADOR
             if (req.usuario.usuarioTipo !== 'ADMINISTRADOR') {
@@ -50,18 +52,27 @@ class UnidadeController {
             const unidade = await prisma.unidade.create({
                 data: {
                     UnidadeNome: UnidadeNome.trim(),
-                    UnidadeStatus: UnidadeStatus || 'ATIVA' // Status padrão se não informado
+                    UnidadeStatus: UnidadeStatus || 'ATIVA', // Status padrão se não informado
+                    UnidadeDtCadastro: getBrasilDateTime(),
+                    UnidadeEmail: UnidadeEmail.trim(),
+                    UnidadeTelefone: UnidadeTelefone.trim()
                 }
             });
 
-            res.status(201).json({
+            // --- Gravar log de criação
+            const LogAcao = 'CADASTRARUNIDADE';
+            const LogDetelhe = 'Foi cadastrada a unidade de ID (' + unidade.UnidadeId + ')';
+            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetelhe, String(unidade.UnidadeId).trim());
+            // ---
+
+            return res.status(201).json({
                 message: 'Unidade cadastrada com sucesso',
                 data: unidade
             });
 
         } catch (error) {
             console.error('Erro ao cadastrar unidade:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro ao cadastrar unidade'
             });
         }
@@ -71,7 +82,7 @@ class UnidadeController {
     async alterarUnidade(req, res) {
         try {
             const { id } = req.params;
-            const { UnidadeNome, UnidadeStatus } = req.body;
+            const { UnidadeNome, UnidadeStatus, UnidadeTelefone, UnidadeEmail } = req.body;
 
             // Verificar se o usuário é ADMINISTRADOR
             if (req.usuario.usuarioTipo !== 'ADMINISTRADOR') {
@@ -147,6 +158,10 @@ class UnidadeController {
                 dadosAtualizacao.UnidadeStatus = UnidadeStatus;
             }
 
+            // Podem ser nulos, sem validação de nulicidade
+            dadosAtualizacao.UnidadeTelefone = UnidadeTelefone;
+            dadosAtualizacao.UnidadeEmail = UnidadeEmail;
+
             // Verificar se há dados para atualizar
             if (Object.keys(dadosAtualizacao).length === 0) {
                 return res.status(400).json({
@@ -162,31 +177,29 @@ class UnidadeController {
                 data: dadosAtualizacao
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERARUNIDADE';
+            const LogDetelhe = 'Foi alterada a unidade de ID (' + unidadeAtualizada.UnidadeId + '), dados antes da alteração (' + JSON.stringify(unidadeExistente) + '), dados depois da atualização (' + JSON.stringify(unidadeAtualizada) + ')';
+            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetelhe, String(unidadeAtualizada.UnidadeId).trim());
+            // ---
+
+            return res.status(200).json({
                 message: 'Unidade atualizada com sucesso',
                 data: unidadeAtualizada
             });
 
         } catch (error) {
             console.error('Erro ao alterar unidade:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro ao alterar unidade'
             });
         }
     }
 
-    // Listar todas as unidades (apenas ADMINISTRADOR)
+    // Listar todas as unidades (todos devido a necessidade de abertura de solicitação)
     async listarUnidades(req, res) {
         try {
             const { status, pagina = 1, limite = 10 } = req.query;
-
-            // Verificar se o usuário é ADMINISTRADOR
-            if (req.usuario.usuarioTipo !== 'ADMINISTRADOR') {
-                return res.status(403).json({
-                    error: 'Apenas administradores podem acessar essa rota'
-                });
-            }
-            
 
             // Construir filtro
             const filtro = {};
@@ -208,49 +221,72 @@ class UnidadeController {
             const skip = (paginaAtual - 1) * limitePorPagina;
 
             // Buscar unidades
-            const [unidades, total] = await prisma.$transaction([
-                prisma.unidade.findMany({
-                    where: filtro,
-                    orderBy: {
-                        UnidadeNome: 'asc'
-                    },
-                    skip: skip,
-                    take: limitePorPagina,
-                    include: {
-                        _count: {
-                            select: {
-                                Departamento: true,
-                                Pessoa: true,
-                                Gestor: true,
-                                Tecnico: true,
-                                Chamado: true,
-                                TipoSuporteUnidade: {
-                                    where: {
-                                        TipSupUniStatus: 'ATIVO'
+            let unidades;
+            let total;
+            const usuarioLogado = req.usuario;
+            if (usuarioLogado) {
+                if (usuarioLogado.usuarioTipo === 'ADMINISTRADOR') {
+                    const [unidades, total] = await prisma.$transaction([
+                        prisma.unidade.findMany({
+                            where: filtro,
+                            orderBy: {
+                                UnidadeNome: 'asc'
+                            },
+                            skip: skip,
+                            take: limitePorPagina,
+                            include: {
+                                _count: {
+                                    select: {
+                                        Departamento: true,
+                                        Pessoa: true,
+                                        Gestor: true,
+                                        Tecnico: true,
+                                        Chamado: true,
+                                        TipoSuporteUnidade: {
+                                            where: {
+                                                TipSupUniStatus: 'ATIVO'
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }
-                }),
-                prisma.unidade.count({
-                    where: filtro
-                })
-            ]);
+                        }),
+                        prisma.unidade.count({
+                            where: filtro
+                        })
+                    ]);
 
-            res.status(200).json({
-                data: unidades,
-                paginacao: {
-                    paginaAtual,
-                    limitePorPagina,
-                    totalRegistros: total,
-                    totalPaginas: Math.ceil(total / limitePorPagina)
+                    return res.status(200).json({
+                        data: unidades,
+                        paginacao: {
+                            paginaAtual,
+                            limitePorPagina,
+                            totalRegistros: total,
+                            totalPaginas: Math.ceil(total / limitePorPagina)
+                        }
+                    });
                 }
-            });
+            } else {
+                // Para outros tipos de usuários listtar somente o nome e as unidades ativas
+                const unidades = await prisma.unidade.findMany({
+                    where: { UnidadeStatus: 'ATIVA' },
+                    orderBy: {
+                        UnidadeNome: 'asc'
+                    },
+                    select: {
+                        UnidadeId: true,
+                        UnidadeNome: true
+                    }
+                });
+
+                return res.status(200).json({
+                    data: unidades
+                });
+            }
 
         } catch (error) {
             console.error('Erro ao listar unidades:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro ao listar unidades'
             });
         }
@@ -305,13 +341,13 @@ class UnidadeController {
                 });
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: unidade
             });
 
         } catch (error) {
             console.error('Erro ao buscar unidade:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro ao buscar unidade'
             });
         }
@@ -375,18 +411,25 @@ class UnidadeController {
                 }
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERARSTATUSUNIDADE';
+            const LogDetelhe = 'Foi alterado o status da unidade de ID (' + unidadeAtualizada.UnidadeId + '), status antes da alteração (' + unidadeExistente.UnidadeStatus + '), status depois da atualização (' + unidadeAtualizada.UnidadeStatus + ')';
+            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetelhe, String(unidadeAtualizada.UnidadeId).trim());
+            // ---
+
+            return res.status(200).json({
                 message: 'Status da unidade atualizado com sucesso',
                 data: unidadeAtualizada
             });
 
         } catch (error) {
             console.error('Erro ao alterar status da unidade:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro ao alterar status da unidade'
             });
         }
     }
+
 }
 
 module.exports = new UnidadeController();

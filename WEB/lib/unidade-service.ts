@@ -4,6 +4,8 @@ export interface Unidade {
   UnidadeId: number
   UnidadeNome: string
   UnidadeStatus: 'ATIVA' | 'INATIVA' | 'BLOQUEADA'
+  UnidadeEmail: string
+  UnidadeTelefone:string
   _count?: {
     Departamento: number
     Pessoa: number
@@ -70,7 +72,7 @@ export async function buscarUnidadePorId(id: number): Promise<Unidade> {
   }
 }
 
-export async function cadastrarUnidade(data: { UnidadeNome: string; UnidadeStatus?: string }) {
+export async function cadastrarUnidade(data: { UnidadeNome: string; UnidadeStatus?: string; UnidadeTelefone?: string; UnidadeEmail?: string }) {
   try {
     const response = await apiClient.post('/unidade', data)
     return response.data
@@ -80,7 +82,7 @@ export async function cadastrarUnidade(data: { UnidadeNome: string; UnidadeStatu
   }
 }
 
-export async function alterarUnidade(id: number, data: { UnidadeNome?: string; UnidadeStatus?: string }) {
+export async function alterarUnidade(id: number, data: { UnidadeNome?: string; UnidadeStatus?: string; UnidadeTelefone?: string; UnidadeEmail?: string }) {
   try {
     const response = await apiClient.put(`/unidade/${id}`, data)
     return response.data

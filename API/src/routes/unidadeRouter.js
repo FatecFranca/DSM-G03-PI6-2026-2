@@ -37,9 +37,6 @@ const router = express.Router();
  */
 router.get('/:id', unidadeController.buscarUnidadePorId);
 
-// Todas as rotas abaixo exigem autenticação
-router.use(authMiddleware);
-
 /**
  * @openapi
  * /unidades:
@@ -83,10 +80,11 @@ router.use(authMiddleware);
  *                     $ref: '#/components/schemas/UnidadeResumo'
  *                 paginacao:
  *                   $ref: '#/components/schemas/Paginacao'
- *       403:
- *         description: Apenas administradores podem acessar esta rota
  */
 router.get('/', unidadeController.listarUnidades);
+
+// Todas as rotas abaixo exigem autenticação
+router.use(authMiddleware);
 
 /**
  * @openapi

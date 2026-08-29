@@ -186,9 +186,11 @@ function GestorModal({
       newErrors.GestorCPF = "CPF inválido"
     }
     
+    /*
     if (!formData.GestorUsuario.trim()) {
       newErrors.GestorUsuario = "Usuário é obrigatório"
     }
+    */
     
     if (!gestor && !formData.GestorSenha.trim()) {
       newErrors.GestorSenha = "Senha é obrigatória"
@@ -212,7 +214,7 @@ function GestorModal({
       UnidadeId: parseInt(formData.UnidadeId),
       GestorNome: formData.GestorNome.trim(),
       GestorCPF: formData.GestorCPF.replace(/\D/g, ''),
-      GestorUsuario: formData.GestorUsuario.trim(),
+      //GestorUsuario: formData.GestorUsuario.trim(),
       GestorNivel: formData.GestorNivel as 'COMUM' | 'ADMINUNIDADE',
       GestorStatus: formData.GestorStatus as 'ATIVO' | 'INATIVO' | 'BLOQUEADO'
     }
@@ -331,7 +333,7 @@ function GestorModal({
               </label>
               <input
                 type="text"
-                value={formatPhone(formData.GestorTelefone)}
+                value={formatPhone(formData.GestorTelefone ?? '')}
                 onChange={(e) => setFormData({ ...formData, GestorTelefone: e.target.value.replace(/\D/g, '') })}
                 maxLength={15}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100"
@@ -360,7 +362,7 @@ function GestorModal({
               )}
             </div>
 
-            {/* Usuário */}
+            {/* Usuário
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Usuário *
@@ -379,6 +381,7 @@ function GestorModal({
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.GestorUsuario}</p>
               )}
             </div>
+            */}
 
             {/* Senha */}
             <div>

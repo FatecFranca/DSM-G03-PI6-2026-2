@@ -1,5 +1,6 @@
 // src/controllers/atividadeChamadoController.js
 const prisma = require('../prisma.js');
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 
 class AtividadeChamadoController {
 
@@ -105,7 +106,7 @@ class AtividadeChamadoController {
                     ChamadoId: chamadoId,
                     TecnicoId: tecnicoLogado.TecnicoId,
                     AtividadeDescricao: AtividadeDescricao.trim(),
-                    AtividadeDtRealizacao: new Date()
+                    AtividadeDtRealizacao: getBrasilDateTime()
                 },
                 include: {
                     Tecnico: {
@@ -133,14 +134,14 @@ class AtividadeChamadoController {
                 });
             }
 
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Atividade registrada com sucesso',
                 data: atividade
             });
 
         } catch (error) {
             console.error('Erro ao criar atividade:', error);
-            res.status(500).json({ error: 'Erro ao criar atividade' });
+            return res.status(500).json({ error: 'Erro ao criar atividade' });
         }
     }
 
@@ -381,7 +382,7 @@ class AtividadeChamadoController {
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 // Gestor vê atividades dos chamados da sua unidade
                 const gestor = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestor && gestor.UnidadeId === chamado.UnidadeId) {
@@ -461,7 +462,7 @@ class AtividadeChamadoController {
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 // Gestor pode ver atividades de técnicos da sua unidade
                 const gestor = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 const tecnico = await prisma.tecnico.findUnique({
@@ -648,7 +649,7 @@ class AtividadeChamadoController {
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 // Gestor vê atividades dos chamados da sua unidade
                 const gestor = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestor && gestor.UnidadeId === atividade.Chamado.UnidadeId) {

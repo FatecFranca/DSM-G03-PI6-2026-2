@@ -1,12 +1,14 @@
 // src/controllers/tipoSuporteController.js
 const prisma = require('../prisma.js');
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { gravarLog } = require('../utils/logGrava.js');
 
 class TipoSuporteController {
 
     // Cadastrar novo tipo de suporte (apenas administradores)
     async cadastrarTipoSuporte(req, res) {
         try {
-            const { TipSupNom, TipSupStatus } = req.body;
+            const { TipSupNom, TipSupStatus, TipSupDescricao } = req.body;
             const usuarioLogado = req.usuario;
 
             // Verificar se o usuário é ADMINISTRADOR
@@ -51,18 +53,25 @@ class TipoSuporteController {
                 data: {
                     TipSupNom: TipSupNom.trim(),
                     TipSupStatus: TipSupStatus || 'ATIVO',
-                    TipSupDtCadastro: new Date()
+                    TipSupDtCadastro: getBrasilDateTime(),
+                    TipSupDescricao: TipSupDescricao
                 }
             });
 
-            res.status(201).json({
+            // --- Gravar log de cadastro
+            const LogAcao = 'CADASTRARTIPOSUPORTE';
+            const LogDetelhe = 'Foi cadastrado o tipo de suporte de ID (' + tipoSuporte.TipSupId + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(tipoSuporte.TipSupId).trim());
+            // ---
+
+            return res.status(201).json({
                 message: 'Tipo de suporte cadastrado com sucesso',
                 data: tipoSuporte
             });
 
         } catch (error) {
             console.error('Erro ao cadastrar tipo de suporte:', error);
-            res.status(500).json({ error: 'Erro ao cadastrar tipo de suporte' });
+            return res.status(500).json({ error: 'Erro ao cadastrar tipo de suporte' });
         }
     }
 
@@ -70,7 +79,7 @@ class TipoSuporteController {
     async alterarTipoSuporte(req, res) {
         try {
             const { id } = req.params;
-            const { TipSupNom, TipSupStatus } = req.body;
+            const { TipSupNom, TipSupStatus, TipSupDescricao } = req.body;
             const usuarioLogado = req.usuario;
 
             // Verificar se o usuário é ADMINISTRADOR
@@ -162,20 +171,29 @@ class TipoSuporteController {
                 return res.status(400).json({ error: 'Nenhum dado fornecido para atualização' });
             }
 
+            // Sem verificação de nulicidade pois pode ser nulo
+            dadosAtualizacao.TipSupDescricao = TipSupDescricao;
+
             // Atualizar tipo de suporte
             const tipoAtualizado = await prisma.tipoSuporte.update({
                 where: { TipSupId: tipoSuporteId },
                 data: dadosAtualizacao
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERARTIPOSUPORTE';
+            const LogDetelhe = 'Foi alterado o tipo de suporte de ID (' + tipoAtualizado.TipSupId + '), dados antes da alteração (' + JSON.stringify(tipoExistente) + '), dados depois da alteração (' + JSON.stringify(tipoAtualizado) + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(tipoAtualizado.TipSupId).trim());
+            // ---
+
+            return res.status(200).json({
                 message: 'Tipo de suporte atualizado com sucesso',
                 data: tipoAtualizado
             });
 
         } catch (error) {
             console.error('Erro ao alterar tipo de suporte:', error);
-            res.status(500).json({ error: 'Erro ao alterar tipo de suporte' });
+            return res.status(500).json({ error: 'Erro ao alterar tipo de suporte' });
         }
     }
 
@@ -196,7 +214,7 @@ class TipoSuporteController {
             // Aplicar filtros de acordo com permissão
             if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (!gestorLogado) {
@@ -219,7 +237,7 @@ class TipoSuporteController {
             } else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 // Verificar se o gestor tem acesso a esta unidade
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado && gestorLogado.UnidadeId) {
@@ -384,13 +402,13 @@ class TipoSuporteController {
                 ]);
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: tipos
             });
 
         } catch (error) {
             console.error('Erro ao listar tipos de suporte:', error);
-            res.status(500).json({ error: 'Erro ao listar tipos de suporte' });
+            return res.status(500).json({ error: 'Erro ao listar tipos de suporte' });
         }
     }
 
@@ -432,7 +450,7 @@ class TipoSuporteController {
             if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR') {
                 if (usuarioLogado.usuarioTipo === 'GESTOR') {
                     const gestorLogado = await prisma.gestor.findUnique({
-                        where: { GestorId: usuarioLogado.usuarioId }
+                        where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                     });
 
                     const tipoSuporteUni = await prisma.tipoSuporteUnidade.findFirst({
@@ -481,13 +499,13 @@ class TipoSuporteController {
                 }
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: tipoSuporte
             });
 
         } catch (error) {
             console.error('Erro ao buscar tipo de suporte:', error);
-            res.status(500).json({ error: 'Erro ao buscar tipo de suporte' });
+            return res.status(500).json({ error: 'Erro ao buscar tipo de suporte' });
         }
     }
 
@@ -555,14 +573,20 @@ class TipoSuporteController {
                 data: { TipSupStatus: TipSupStatus }
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração de status
+            const LogAcao = 'ALTERARSTATUSTIPOSUPORTE';
+            const LogDetelhe = 'Foi alterado o status do tipo de suporte de ID (' + tipoAtualizado.TipSupId + '), de (' + tipoExistente.TipSupStatus + ') para (' + tipoAtualizado.TipSupStatus + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(tipoAtualizado.TipSupId).trim());
+            // ---
+
+            return res.status(200).json({
                 message: 'Status do tipo de suporte atualizado com sucesso',
                 data: tipoAtualizado
             });
 
         } catch (error) {
             console.error('Erro ao alterar status do tipo de suporte:', error);
-            res.status(500).json({ error: 'Erro ao alterar status do tipo de suporte' });
+            return res.status(500).json({ error: 'Erro ao alterar status do tipo de suporte' });
         }
     }
 
@@ -582,7 +606,7 @@ class TipoSuporteController {
             if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR') {
                 if (usuarioLogado.usuarioTipo === 'GESTOR') {
                     const gestorLogado = await prisma.gestor.findUnique({
-                        where: { GestorId: usuarioLogado.usuarioId }
+                        where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                     });
 
                     if (gestorLogado && gestorLogado.UnidadeId !== unidadeIdInt) {
@@ -709,13 +733,13 @@ class TipoSuporteController {
                 }
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: tipos
             });
 
         } catch (error) {
             console.error('Erro ao listar tipos de suporte por unidade:', error);
-            res.status(500).json({ error: 'Erro ao listar tipos de suporte por unidade' });
+            return res.status(500).json({ error: 'Erro ao listar tipos de suporte por unidade' });
         }
     }
 
@@ -757,13 +781,13 @@ class TipoSuporteController {
                 }
             })
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: vinculos
             })
 
         } catch (error) {
             console.error('Erro ao listar vínculos:', error)
-            res.status(500).json({ error: 'Erro ao listar vínculos' })
+            return res.status(500).json({ error: 'Erro ao listar vínculos' })
         }
     }
 
@@ -825,7 +849,8 @@ class TipoSuporteController {
                 data: {
                     TipSupId: tipoSuporteId,
                     UnidadeId: unidadeIdInt,
-                    TipSupUniStatus: 'ATIVO'
+                    TipSupUniStatus: 'ATIVO',
+                    TipSupUniDtVin: getBrasilDateTime()
                 },
                 include: {
                     Unidade: {
@@ -836,16 +861,22 @@ class TipoSuporteController {
                         }
                     }
                 }
-            })
+            });
 
-            res.status(201).json({
+            // --- Gravar vinculo unidade e tipo de suporte
+            const LogAcao = 'VINCULARUNIDADEIPOSUPORTE';
+            const LogDetelhe = 'Foi vinculado o tipo de suporte de ID (' + tipoSuporteId + ') com a unidade de ID (' + unidadeIdInt + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, vinculo.TipSupUniId);
+            // ---
+
+            return res.status(201).json({
                 message: 'Unidade vinculada com sucesso',
                 data: vinculo
             })
 
         } catch (error) {
             console.error('Erro ao adicionar unidade:', error)
-            res.status(500).json({ error: 'Erro ao adicionar unidade' })
+            return res.status(500).json({ error: 'Erro ao adicionar unidade' })
         }
     }
 
@@ -869,6 +900,13 @@ class TipoSuporteController {
                 })
             }
 
+            let TipSupUniDtIna;
+            if (status === 'INATIVO'){
+                TipSupUniDtIna = getBrasilDateTime()
+            } else {
+                TipSupUniDtIna = null
+            }
+
             // Verificar se o vínculo existe
             const vinculo = await prisma.tipoSuporteUnidade.findUnique({
                 where: { TipSupUniId: id },
@@ -885,7 +923,7 @@ class TipoSuporteController {
             // Atualizar status
             const vinculoAtualizado = await prisma.tipoSuporteUnidade.update({
                 where: { TipSupUniId: id },
-                data: { TipSupUniStatus: status },
+                data: { TipSupUniStatus: status, TipSupUniDtIna: TipSupUniDtIna },
                 include: {
                     Unidade: {
                         select: {
@@ -895,16 +933,22 @@ class TipoSuporteController {
                         }
                     }
                 }
-            })
+            });
 
-            res.status(200).json({
+            // --- Gravar alteração de status de vinculo de unidade e tipo de suporte
+            const LogAcao = 'ALTERARSTATUSVINCULOUNIDADEIPOSUPORTE';
+            const LogDetelhe = 'Foi alterado o status do vinculo de tipo de suporte de ID (' + vinculoAtualizado.TipSupId + ') com a unidade de ID (' + vinculoAtualizado.UnidadeId + '), de status (' + vinculo.TipSupUniStatus + ') para (' + vinculoAtualizado.TipSupUniStatus + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, vinculoAtualizado.TipSupUniId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Status do vínculo atualizado com sucesso',
                 data: vinculoAtualizado
             })
 
         } catch (error) {
             console.error('Erro ao alterar vínculo:', error)
-            res.status(500).json({ error: 'Erro ao alterar vínculo' })
+            return res.status(500).json({ error: 'Erro ao alterar vínculo' })
         }
     }
 
@@ -935,13 +979,19 @@ class TipoSuporteController {
                 where: { TipSupUniId: id }
             })
 
-            res.status(200).json({
+            // --- Gravar exclusão de vinculo unidade e tipo de suporte
+            const LogAcao = 'DESVINCULARUNIDADEIPOSUPORTE';
+            const LogDetelhe = 'Foi desvinculado o tipo de suporte de ID (' + vinculo.TipSupId + ') com a unidade de ID (' + vinculo.UnidadeId + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(vinculo.TipSupId).trim());
+            // ---
+
+            return res.status(200).json({
                 message: 'Vínculo removido com sucesso'
             })
 
         } catch (error) {
             console.error('Erro ao remover vínculo:', error)
-            res.status(500).json({ error: 'Erro ao remover vínculo' })
+            return res.status(500).json({ error: 'Erro ao remover vínculo' })
         }
     }
 

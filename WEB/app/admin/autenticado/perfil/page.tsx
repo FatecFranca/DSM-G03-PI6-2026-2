@@ -3,36 +3,38 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/app/contexts/AuthContext"
 import { useRouter } from "next/navigation"
-import { 
-  User, 
-  Mail, 
-  Key, 
+import {
+  User,
+  Mail,
+  Key,
   Save,
   RefreshCw,
   AlertCircle,
   CheckCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  PencilLine
 } from "lucide-react"
 import { apiClient } from "@/lib/api"
 
 export default function PerfilPage() {
   const { user, logout } = useAuth()
   const router = useRouter()
-  
+
   const [formData, setFormData] = useState({
     AdministradorUsuario: "",
     AdministradorSenhaAtual: "",
     AdministradorSenha: "",
-    AdministradorSenhaConfirm: ""
+    AdministradorSenhaConfirm: "",
+    AdministradorNome: ""
   })
-  
+
   const [showPassword, setShowPassword] = useState({
     atual: false,
     nova: false,
     confirm: false
   })
-  
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -42,32 +44,33 @@ export default function PerfilPage() {
     if (user) {
       setFormData(prev => ({
         ...prev,
-        AdministradorUsuario: user.AdministradorUsuario
+        AdministradorUsuario: user.AdministradorUsuario,
+        AdministradorNome: user.AdministradorNome
       }))
     }
   }, [user])
 
   const validate = () => {
     const newErrors: Record<string, string> = {}
-    
+
     if (!formData.AdministradorUsuario.trim()) {
       newErrors.usuario = "Usuário é obrigatório"
     }
-    
+
     if (!formData.AdministradorSenhaAtual) {
       newErrors.senhaAtual = "Senha atual é obrigatória"
     }
-    
+
     if (formData.AdministradorSenha || formData.AdministradorSenhaConfirm) {
       if (formData.AdministradorSenha.length < 6) {
         newErrors.senhaNova = "A nova senha deve ter no mínimo 6 caracteres"
       }
-      
+
       if (formData.AdministradorSenha !== formData.AdministradorSenhaConfirm) {
         newErrors.senhaConfirm = "As senhas não coincidem"
       }
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -76,25 +79,26 @@ export default function PerfilPage() {
     e.preventDefault()
     setError("")
     setSuccess("")
-    
+
     if (!validate()) return
-    
+
     setIsLoading(true)
-    
+
     try {
       const dataToSend: any = {
         AdministradorUsuario: formData.AdministradorUsuario.toUpperCase(),
-        AdministradorSenhaAtual: formData.AdministradorSenhaAtual
+        AdministradorSenhaAtual: formData.AdministradorSenhaAtual,
+        AdministradorNome: formData.AdministradorNome
       }
-      
+
       if (formData.AdministradorSenha) {
         dataToSend.AdministradorSenha = formData.AdministradorSenha
       }
-      
+
       const response = await apiClient.put('/admin/', dataToSend)
-      
+
       setSuccess("Dados atualizados com sucesso!")
-      
+
       // Limpar campos de senha
       setFormData(prev => ({
         ...prev,
@@ -102,7 +106,7 @@ export default function PerfilPage() {
         AdministradorSenha: "",
         AdministradorSenhaConfirm: ""
       }))
-      
+
     } catch (err: any) {
       console.error('Erro ao atualizar perfil:', err)
       setError(err.response?.data?.error || 'Erro ao atualizar dados')
@@ -153,9 +157,8 @@ export default function PerfilPage() {
               type="text"
               value={formData.AdministradorUsuario}
               onChange={(e) => setFormData({ ...formData, AdministradorUsuario: e.target.value.toUpperCase() })}
-              className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${
-                errors.usuario ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-              }`}
+              className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${errors.usuario ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
               placeholder="Digite seu nome de usuário"
               disabled={isLoading}
             />
@@ -163,6 +166,29 @@ export default function PerfilPage() {
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.usuario}</p>
             )}
           </div>
+
+          {/* Nome */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="flex items-center gap-2">
+                <PencilLine size={16} />
+                Nome Responsável
+              </div>
+            </label>
+            <input
+              type="text"
+              value={formData.AdministradorNome}
+              onChange={(e) => setFormData({ ...formData, AdministradorNome: e.target.value })}
+              className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${errors.usuario ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+              placeholder="Digite o nome do responsável pelo usuário"
+              disabled={isLoading}
+            />
+          </div>
+
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+            Ao alterar o nome do responsável ou o nome de usuário, é necessário sair da conta e entrar novamente para visualizar a alteração, já com o novo nome de usuário
+          </p>
 
           {/* Divisor */}
           <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
@@ -181,9 +207,8 @@ export default function PerfilPage() {
                   type={showPassword.atual ? "text" : "password"}
                   value={formData.AdministradorSenhaAtual}
                   onChange={(e) => setFormData({ ...formData, AdministradorSenhaAtual: e.target.value })}
-                  className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${
-                    errors.senhaAtual ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-                  }`}
+                  className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${errors.senhaAtual ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                    }`}
                   placeholder="Digite sua senha atual"
                   disabled={isLoading}
                 />
@@ -211,9 +236,8 @@ export default function PerfilPage() {
                     type={showPassword.nova ? "text" : "password"}
                     value={formData.AdministradorSenha}
                     onChange={(e) => setFormData({ ...formData, AdministradorSenha: e.target.value })}
-                    className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${
-                      errors.senhaNova ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-                    }`}
+                    className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${errors.senhaNova ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                      }`}
                     placeholder="Mínimo 6 caracteres"
                     disabled={isLoading}
                   />
@@ -239,9 +263,8 @@ export default function PerfilPage() {
                     type={showPassword.confirm ? "text" : "password"}
                     value={formData.AdministradorSenhaConfirm}
                     onChange={(e) => setFormData({ ...formData, AdministradorSenhaConfirm: e.target.value })}
-                    className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${
-                      errors.senhaConfirm ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-                    }`}
+                    className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${errors.senhaConfirm ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                      }`}
                     placeholder="Confirme a nova senha"
                     disabled={isLoading}
                   />

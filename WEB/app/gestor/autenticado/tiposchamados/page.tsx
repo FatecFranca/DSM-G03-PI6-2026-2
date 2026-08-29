@@ -22,10 +22,7 @@ import {
 import { useGestorAuth } from "@/app/contexts/GestorAuthContext"
 import {
     listarTiposSuporte,
-    cadastrarTipoSuporte,
-    alterarTipoSuporte,
     alterarStatusTipoSuporte,
-    buscarTipoSuportePorId,
     type TipoSuporte,
     type TipoSuporteFilters
 } from "@/lib/tipoSuporte-service"

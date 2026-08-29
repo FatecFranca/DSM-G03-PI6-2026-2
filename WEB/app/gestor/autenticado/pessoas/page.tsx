@@ -285,7 +285,7 @@ function PessoaModal({
               </label>
               <input
                 type="text"
-                value={formatPhone(formData.PessoaTelefone)}
+                value={formatPhone(formData.PessoaTelefone ?? '')}
                 onChange={(e) => setFormData({ ...formData, PessoaTelefone: e.target.value.replace(/\D/g, '') })}
                 maxLength={15}
                 className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-gray-100"

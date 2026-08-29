@@ -3,6 +3,8 @@ const prisma = require('../prisma.js');
 
 const pool = require('../services/classificador');
 
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+
 // Método separado para classificação em background
 async function processarClassificacaoEmBackground(chamadoId, dadosClassificacao) {
     console.log(`[${new Date().toISOString()}] 🚀 Iniciando classificação para chamado ${chamadoId}...`);
@@ -205,7 +207,7 @@ class ChamadoController {
                     UnidadeId: parseInt(UnidadeId),
                     ChamadoDescricaoInicial: ChamadoDescricaoInicial.trim(),
                     ChamadoStatus: 'PENDENTE',
-                    ChamadoDtAbertura: new Date(),
+                    ChamadoDtAbertura: getBrasilDateTime(),
                     ChamadoBloqueioVia: ChamadoBloqueioVia,
                     ChamadoDiasComProblema: parseInt(ChamadoDiasComProblema),
                     ChamadoRiscoVidaHumana: ChamadoRiscoVidaHumana,
@@ -397,7 +399,7 @@ class ChamadoController {
             // Caso 2: Gestor da unidade
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado && gestorLogado.UnidadeId === chamadoExistente.UnidadeId) {
@@ -676,7 +678,7 @@ class ChamadoController {
             }
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestor = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestor) {
@@ -910,7 +912,7 @@ class ChamadoController {
             }
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestor = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestor) {
@@ -964,7 +966,7 @@ class ChamadoController {
 
             // Buscar gestor
             const gestor = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestor || gestor.GestorStatus !== 'ATIVO') {
@@ -1078,7 +1080,7 @@ class ChamadoController {
             // Gestor pode alterar qualquer status
             if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestor = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestor && gestor.UnidadeId === chamado.UnidadeId) {
@@ -1280,7 +1282,7 @@ class ChamadoController {
             // Aplicar filtros de acordo com permissão
             if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestor = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestor) {

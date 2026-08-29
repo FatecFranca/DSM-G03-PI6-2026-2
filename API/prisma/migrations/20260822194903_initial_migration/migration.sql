@@ -34,11 +34,31 @@ CREATE TYPE "ChamadoStatus" AS ENUM ('PENDENTE', 'ANALISADO', 'ATRIBUIDO', 'EMAT
 -- CreateEnum
 CREATE TYPE "ChamadoUrgencia" AS ENUM ('BAIXA', 'MEDIA', 'ALTA', 'URGENTE');
 
+-- CreateEnum
+CREATE TYPE "TipoRelacao" AS ENUM ('PESSOA', 'TECNICO', 'GESTOR', 'ADMINISTRADOR', 'SISTEMA', 'OUTRO');
+
+-- CreateEnum
+CREATE TYPE "NotificacaoStatus" AS ENUM ('ENVIADO', 'EXIBIDO', 'LIDO', 'EXCLUIDO');
+
+-- CreateEnum
+CREATE TYPE "NotificacaoNivel" AS ENUM ('BAIXA', 'NORMAL', 'ALTA', 'URGENTE');
+
+-- CreateEnum
+CREATE TYPE "UsuarioVer" AS ENUM ('TODOS', 'GESTOR', 'ADMUNIDADE', 'ADMSISTEMA', 'TECNICO', 'PESSOA', 'GESTEC');
+
+-- CreateEnum
+CREATE TYPE "SolicitacaoStatus" AS ENUM ('PENDENTE', 'EMATENDIMENTO', 'CONCLUIDO', 'RECUSADO', 'FALTAINFORMACAO');
+
+-- CreateEnum
+CREATE TYPE "AdministradorStatus" AS ENUM ('ATIVO', 'INATIVO', 'BLOQUEADO');
+
 -- CreateTable
 CREATE TABLE "Administrador" (
     "AdministradorId" SERIAL NOT NULL,
     "AdministradorUsuario" VARCHAR(20) NOT NULL,
     "AdministradorSenha" TEXT NOT NULL,
+    "AdministradorStatus" "AdministradorStatus" DEFAULT 'ATIVO',
+    "AdministradorNome" VARCHAR(100),
 
     CONSTRAINT "Administrador_pkey" PRIMARY KEY ("AdministradorId")
 );
@@ -49,6 +69,8 @@ CREATE TABLE "Unidade" (
     "UnidadeNome" VARCHAR(200) NOT NULL,
     "UnidadeStatus" "UnidadeStatus" NOT NULL,
     "UnidadeDtCadastro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "UnidadeEmail" VARCHAR(256),
+    "UnidadeTelefone" VARCHAR(15),
 
     CONSTRAINT "Unidade_pkey" PRIMARY KEY ("UnidadeId")
 );
@@ -131,6 +153,8 @@ CREATE TABLE "TecnicoEquipe" (
     "EquipeId" TEXT NOT NULL,
     "TecnicoId" TEXT NOT NULL,
     "TecEquStatus" "TecEquStatus" NOT NULL,
+    "TecEquDtVin" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+    "TecEquDtIna" TIMESTAMP(3),
 
     CONSTRAINT "TecnicoEquipe_pkey" PRIMARY KEY ("TecEquId")
 );
@@ -141,6 +165,7 @@ CREATE TABLE "TipoSuporte" (
     "TipSupNom" VARCHAR(100) NOT NULL,
     "TipSupDtCadastro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "TipSupStatus" "TipSupStatus" NOT NULL DEFAULT 'BLOQUEADOIA',
+    "TipSupDescricao" TEXT,
 
     CONSTRAINT "TipoSuporte_pkey" PRIMARY KEY ("TipSupId")
 );
@@ -151,6 +176,8 @@ CREATE TABLE "TipoSuporteUnidade" (
     "TipSupId" INTEGER NOT NULL,
     "UnidadeId" INTEGER NOT NULL,
     "TipSupUniStatus" "TipSupUniStatus" NOT NULL,
+    "TipSupUniDtVin" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+    "TipSupUniDtIna" TIMESTAMP(3),
 
     CONSTRAINT "TipoSuporteUnidade_pkey" PRIMARY KEY ("TipSupUniId")
 );
@@ -187,6 +214,7 @@ CREATE TABLE "HistoricoChamado" (
     "ChamadoId" TEXT NOT NULL,
     "HistChamadoDescricao" TEXT NOT NULL,
     "HistChamadoDt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "HistChamadoUsuarioVer" "UsuarioVer" NOT NULL DEFAULT 'TODOS',
 
     CONSTRAINT "HistoricoChamado_pkey" PRIMARY KEY ("HistChamadoId")
 );
@@ -197,9 +225,66 @@ CREATE TABLE "AtividadeChamado" (
     "ChamadoId" TEXT NOT NULL,
     "TecnicoId" TEXT NOT NULL,
     "AtividadeDescricao" TEXT NOT NULL,
+    "AtividadeUsuarioVer" "UsuarioVer" NOT NULL DEFAULT 'TODOS',
     "AtividadeDtRealizacao" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AtividadeChamado_pkey" PRIMARY KEY ("AtividadeId")
+);
+
+-- CreateTable
+CREATE TABLE "Log" (
+    "LogId" TEXT NOT NULL,
+    "LogChave" TEXT,
+    "LogUsuId" TEXT,
+    "LogTipoRelacao" "TipoRelacao" NOT NULL DEFAULT 'OUTRO',
+    "LogAcao" VARCHAR(50) NOT NULL,
+    "LogDetalhe" TEXT NOT NULL,
+    "LogData" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Log_pkey" PRIMARY KEY ("LogId")
+);
+
+-- CreateTable
+CREATE TABLE "Notificacao" (
+    "NotificacaoId" TEXT NOT NULL,
+    "NotificacaoUsuId" TEXT,
+    "NotificacaoAdicionalId" TEXT,
+    "NotificacaoTipoRelacao" "TipoRelacao" NOT NULL DEFAULT 'OUTRO',
+    "NotificacaoData" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "NotificacaoTipo" VARCHAR(50) NOT NULL,
+    "NotificacaoTitulo" VARCHAR(100) NOT NULL,
+    "NotificacaoMensagem" TEXT NOT NULL,
+    "NotificacaoStatus" "NotificacaoStatus" NOT NULL DEFAULT 'ENVIADO',
+    "NotificacaoNivel" "NotificacaoNivel" NOT NULL DEFAULT 'NORMAL',
+
+    CONSTRAINT "Notificacao_pkey" PRIMARY KEY ("NotificacaoId")
+);
+
+-- CreateTable
+CREATE TABLE "Solicitacao" (
+    "SolicitacaoId" TEXT NOT NULL,
+    "UnidadeId" INTEGER,
+    "SolicitacaoTipo" VARCHAR(50) NOT NULL,
+    "SolicitacaoDescricao" TEXT NOT NULL,
+    "SolicitacaoIdRelacional" TEXT,
+    "SolicitacaoSolicitanteNome" VARCHAR(100),
+    "SolicitacaoSolicitanteEmail" VARCHAR(256),
+    "SolicitacaoSolicitanteTelefone" VARCHAR(256),
+    "SolicitacaoUsuarioFinalizou" VARCHAR(20),
+    "SolicitacaoStatus" "SolicitacaoStatus" NOT NULL DEFAULT 'PENDENTE',
+
+    CONSTRAINT "Solicitacao_pkey" PRIMARY KEY ("SolicitacaoId")
+);
+
+-- CreateTable
+CREATE TABLE "AtividadeSolicitacao" (
+    "AtividadeSolicitacaoId" TEXT NOT NULL,
+    "SolicitacaoId" TEXT NOT NULL,
+    "AtividadeSolicitacaoDescricao" TEXT NOT NULL,
+    "AtividadeSolicitacaoDtRealizacao" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "AtividadeSolicitacaoUsuario" VARCHAR(20) NOT NULL,
+
+    CONSTRAINT "AtividadeSolicitacao_pkey" PRIMARY KEY ("AtividadeSolicitacaoId")
 );
 
 -- CreateIndex
@@ -213,6 +298,42 @@ CREATE UNIQUE INDEX "Pessoa_PessoaCPF_key" ON "Pessoa"("PessoaCPF");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tecnico_TecnicoUsuario_key" ON "Tecnico"("TecnicoUsuario");
+
+-- CreateIndex
+CREATE INDEX "Log_LogData_idx" ON "Log"("LogData");
+
+-- CreateIndex
+CREATE INDEX "Log_LogAcao_idx" ON "Log"("LogAcao");
+
+-- CreateIndex
+CREATE INDEX "Log_LogTipoRelacao_LogData_idx" ON "Log"("LogTipoRelacao", "LogData");
+
+-- CreateIndex
+CREATE INDEX "Log_LogUsuId_LogData_idx" ON "Log"("LogUsuId", "LogData");
+
+-- CreateIndex
+CREATE INDEX "Log_LogAcao_LogData_idx" ON "Log"("LogAcao", "LogData");
+
+-- CreateIndex
+CREATE INDEX "Notificacao_NotificacaoUsuId_NotificacaoStatus_idx" ON "Notificacao"("NotificacaoUsuId", "NotificacaoStatus");
+
+-- CreateIndex
+CREATE INDEX "Notificacao_NotificacaoAdicionalId_NotificacaoTipo_idx" ON "Notificacao"("NotificacaoAdicionalId", "NotificacaoTipo");
+
+-- CreateIndex
+CREATE INDEX "Notificacao_NotificacaoStatus_NotificacaoData_idx" ON "Notificacao"("NotificacaoStatus", "NotificacaoData");
+
+-- CreateIndex
+CREATE INDEX "Notificacao_NotificacaoData_idx" ON "Notificacao"("NotificacaoData");
+
+-- CreateIndex
+CREATE INDEX "Notificacao_NotificacaoTipo_idx" ON "Notificacao"("NotificacaoTipo");
+
+-- CreateIndex
+CREATE INDEX "Notificacao_NotificacaoTipoRelacao_NotificacaoStatus_idx" ON "Notificacao"("NotificacaoTipoRelacao", "NotificacaoStatus");
+
+-- CreateIndex
+CREATE INDEX "Notificacao_NotificacaoUsuId_NotificacaoData_idx" ON "Notificacao"("NotificacaoUsuId", "NotificacaoData");
 
 -- AddForeignKey
 ALTER TABLE "Gestor" ADD CONSTRAINT "Gestor_UnidadeId_fkey" FOREIGN KEY ("UnidadeId") REFERENCES "Unidade"("UnidadeId") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -265,3 +386,8 @@ ALTER TABLE "AtividadeChamado" ADD CONSTRAINT "AtividadeChamado_ChamadoId_fkey" 
 -- AddForeignKey
 ALTER TABLE "AtividadeChamado" ADD CONSTRAINT "AtividadeChamado_TecnicoId_fkey" FOREIGN KEY ("TecnicoId") REFERENCES "Tecnico"("TecnicoId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "Solicitacao" ADD CONSTRAINT "Solicitacao_UnidadeId_fkey" FOREIGN KEY ("UnidadeId") REFERENCES "Unidade"("UnidadeId") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AtividadeSolicitacao" ADD CONSTRAINT "AtividadeSolicitacao_SolicitacaoId_fkey" FOREIGN KEY ("SolicitacaoId") REFERENCES "Solicitacao"("SolicitacaoId") ON DELETE RESTRICT ON UPDATE CASCADE;

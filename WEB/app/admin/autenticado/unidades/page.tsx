@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { 
-  Building2, 
-  Search, 
-  Plus, 
-  Edit, 
+import {
+  Building2,
+  Search,
+  Plus,
+  Edit,
   MoreVertical,
   ChevronLeft,
   ChevronRight,
@@ -17,21 +17,21 @@ import {
   RefreshCw,
   Eye
 } from "lucide-react"
-import { 
-  listarUnidades, 
-  cadastrarUnidade, 
-  alterarUnidade, 
+import {
+  listarUnidades,
+  cadastrarUnidade,
+  alterarUnidade,
   alterarStatusUnidade,
   type Unidade,
   type UnidadeFilters
 } from "@/lib/unidade-service"
 
 // Modal de confirmação
-function ConfirmModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
+function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
   message,
   confirmText = "Confirmar",
   cancelText = "Cancelar",
@@ -114,26 +114,32 @@ function UnidadeModal({
 }: {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: { UnidadeNome: string; UnidadeStatus?: string }) => Promise<void>
+  onSave: (data: { UnidadeNome: string; UnidadeStatus?: string; UnidadeEmail?: string; UnidadeTelefone?: string }) => Promise<void>
   unidade?: Unidade | null
   isLoading: boolean
 }) {
   const [formData, setFormData] = useState({
     UnidadeNome: "",
-    UnidadeStatus: "ATIVA"
+    UnidadeStatus: "ATIVA",
+    UnidadeEmail: "",
+    UnidadeTelefone: ""
   })
-  const [errors, setErrors] = useState<{ nome?: string }>({})
+  const [errors, setErrors] = useState<{ nome?: string, UnidadeEmail?: string, UnidadeTelefone?: string }>({})
 
   useEffect(() => {
     if (unidade) {
       setFormData({
         UnidadeNome: unidade.UnidadeNome,
-        UnidadeStatus: unidade.UnidadeStatus
+        UnidadeStatus: unidade.UnidadeStatus,
+        UnidadeEmail: unidade.UnidadeEmail,
+        UnidadeTelefone: unidade.UnidadeTelefone
       })
     } else {
       setFormData({
         UnidadeNome: "",
-        UnidadeStatus: "ATIVA"
+        UnidadeStatus: "ATIVA",
+        UnidadeEmail: "",
+        UnidadeTelefone: ""
       })
     }
     setErrors({})
@@ -153,6 +159,14 @@ function UnidadeModal({
     if (!validate()) return
 
     await onSave(formData)
+  }
+
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    if (numbers.length === 11) {
+      return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+    }
+    return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
   }
 
   if (!isOpen) return null
@@ -181,14 +195,47 @@ function UnidadeModal({
               type="text"
               value={formData.UnidadeNome}
               onChange={(e) => setFormData({ ...formData, UnidadeNome: e.target.value })}
-              className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${
-                errors.nome ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'
-              }`}
+              className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${errors.nome ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
               placeholder="Digite o nome da unidade"
               disabled={isLoading}
             />
             {errors.nome && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nome}</p>
+            )}
+          </div>
+
+          {/* Telefone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Telefone
+            </label>
+            <input
+              type="text"
+              value={formatPhone(formData.UnidadeTelefone ?? '')}
+              onChange={(e) => setFormData({ ...formData, UnidadeTelefone: e.target.value.replace(/\D/g, '') })}
+              maxLength={15}
+              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100"
+              placeholder="(00) 00000-0000"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              E-mail
+            </label>
+            <input
+              type="email"
+              value={formData.UnidadeEmail}
+              onChange={(e) => setFormData({ ...formData, UnidadeEmail: e.target.value })}
+              className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${errors.UnidadeEmail ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+              placeholder="email@exemplo.com"
+              disabled={isLoading}
+            />
+            {errors.UnidadeEmail && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.UnidadeEmail}</p>
             )}
           </div>
 
@@ -333,7 +380,7 @@ export default function UnidadesPage() {
     }
   }
 
-  const handleSaveUnidade = async (data: { UnidadeNome: string; UnidadeStatus?: string }) => {
+  const handleSaveUnidade = async (data: { UnidadeNome: string; UnidadeStatus?: string, UnidadeTelefone?: string, UnidadeEmail?: string }) => {
     try {
       setModalLoading(true)
       if (selectedUnidade) {
@@ -361,7 +408,7 @@ export default function UnidadesPage() {
   }
 
   // Filtrar unidades localmente enquanto o backend não tem busca
-  const unidadesFiltradas = unidades.filter(u => 
+  const unidadesFiltradas = unidades.filter(u =>
     u.UnidadeNome.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
@@ -427,41 +474,37 @@ export default function UnidadesPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => handleStatusFilter('TODOS')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    !filters.status
-                      ? 'bg-gray-900 text-white dark:bg-gray-700'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${!filters.status
+                    ? 'bg-gray-900 text-white dark:bg-gray-700'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
                 >
                   Todos
                 </button>
                 <button
                   onClick={() => handleStatusFilter('ATIVA')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    filters.status === 'ATIVA'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filters.status === 'ATIVA'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800'
+                    }`}
                 >
                   ATIVA
                 </button>
                 <button
                   onClick={() => handleStatusFilter('INATIVA')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    filters.status === 'INATIVA'
-                      ? 'bg-gray-600 text-white'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filters.status === 'INATIVA'
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
                 >
                   INATIVA
                 </button>
                 <button
                   onClick={() => handleStatusFilter('BLOQUEADA')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    filters.status === 'BLOQUEADA'
-                      ? 'bg-red-600 text-white'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filters.status === 'BLOQUEADA'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800'
+                    }`}
                 >
                   BLOQUEADA
                 </button>
@@ -607,11 +650,10 @@ export default function UnidadesPage() {
                 <button
                   key={pagina}
                   onClick={() => handlePageChange(pagina)}
-                  className={`px-3 py-1 rounded-lg text-sm ${
-                    paginacao.paginaAtual === pagina
-                      ? 'bg-gray-900 dark:bg-gray-700 text-white'
-                      : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-sm ${paginacao.paginaAtual === pagina
+                    ? 'bg-gray-900 dark:bg-gray-700 text-white'
+                    : 'bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
                 >
                   {pagina}
                 </button>
@@ -678,6 +720,22 @@ export default function UnidadesPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Nome</p>
                   <p className="text-lg font-medium text-gray-900 dark:text-gray-100">{viewingUnidade.UnidadeNome}</p>
                 </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">E-mail</p>
+                  <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    {viewingUnidade.UnidadeEmail && viewingUnidade.UnidadeEmail.trim() !== ''
+                      ? viewingUnidade.UnidadeEmail
+                      : 'Nenhum'}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Telefone</p>
+                  <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    {viewingUnidade.UnidadeTelefone && viewingUnidade.UnidadeTelefone.trim() !== ''
+                      ? viewingUnidade.UnidadeTelefone
+                      : 'Nenhum'}
+                  </p>
+                </div>
               </div>
 
               <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
@@ -711,11 +769,10 @@ export default function UnidadesPage() {
                     {viewingUnidade.Departamento.map(dept => (
                       <div key={dept.DepartamentoId} className="flex items-center justify-between py-1">
                         <span className="text-sm text-gray-900 dark:text-gray-100">{dept.DepartamentoNome}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${
-                          dept.DepartamentoStatus === 'ATIVO' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${dept.DepartamentoStatus === 'ATIVO'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                          }`}>
                           {dept.DepartamentoStatus}
                         </span>
                       </div>
@@ -731,11 +788,10 @@ export default function UnidadesPage() {
                     {viewingUnidade.TipoSuporte.map(tipo => (
                       <div key={tipo.TipSupId} className="flex items-center justify-between py-1">
                         <span className="text-sm text-gray-900 dark:text-gray-100">{tipo.TipSupNom}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${
-                          tipo.TipSupStatus === 'ATIVO' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${tipo.TipSupStatus === 'ATIVO'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                          }`}>
                           {tipo.TipSupStatus}
                         </span>
                       </div>

@@ -3,6 +3,8 @@ const prisma = require('../prisma.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+
 class PessoaController {
 
     // Login da pessoa
@@ -147,7 +149,7 @@ class PessoaController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -232,7 +234,7 @@ class PessoaController {
                     PessoaCPF: PessoaCPF.trim(),
                     PessoaSenha: senhaHash,
                     PessoaStatus: PessoaStatus || 'ATIVA',
-                    PessoadtCadastro: new Date()
+                    PessoadtCadastro: getBrasilDateTime()
                 },
                 include: {
                     Unidade: {
@@ -318,7 +320,7 @@ class PessoaController {
             // Caso 2: Gestor alterando
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (!gestorLogado) {
@@ -511,7 +513,7 @@ class PessoaController {
             }
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado) {
@@ -525,7 +527,7 @@ class PessoaController {
                 if (unidadeId) {
                     // Verificar se o gestor tem permissão para esta unidade
                     const gestorLogado = await prisma.gestor.findUnique({
-                        where: { GestorId: usuarioLogado.usuarioId }
+                        where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                     });
 
                     if (gestorLogado && gestorLogado.UnidadeId === parseInt(unidadeId)) {
@@ -657,7 +659,7 @@ class PessoaController {
             }
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado && gestorLogado.UnidadeId !== pessoa.UnidadeId) {
@@ -713,7 +715,7 @@ class PessoaController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -815,7 +817,7 @@ class PessoaController {
             // Verificar permissão
             if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado && gestorLogado.UnidadeId !== unidadeIdInt) {

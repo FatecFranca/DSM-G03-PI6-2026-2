@@ -1,5 +1,6 @@
 // src/controllers/departamentoController.js
 const prisma = require('../prisma.js');
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 
 class DepartamentoController {
 
@@ -27,7 +28,7 @@ class DepartamentoController {
 
             // Buscar gestor logado para verificar nível e unidade
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -89,7 +90,7 @@ class DepartamentoController {
                     UnidadeId: parseInt(UnidadeId),
                     DepartamentoNome: DepartamentoNome.trim(),
                     DepartamentoStatus: DepartamentoStatus || 'ATIVO', // Status padrão se não informado
-                    DepartamentoDtCadastro: new Date()
+                    DepartamentoDtCadastro: getBrasilDateTime()
                 },
                 include: {
                     Unidade: {
@@ -102,7 +103,7 @@ class DepartamentoController {
                 }
             });
 
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Departamento cadastrado com sucesso',
                 data: departamento
             });
@@ -134,7 +135,7 @@ class DepartamentoController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -265,7 +266,7 @@ class DepartamentoController {
             // Aplicar filtros de acordo com permissão
             if (usuarioLogado?.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado) {
@@ -387,7 +388,7 @@ class DepartamentoController {
             // Verificar permissão de visualização para gestores
             if (usuarioLogado?.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado && gestorLogado.UnidadeId !== departamento.UnidadeId) {
@@ -440,7 +441,7 @@ class DepartamentoController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {

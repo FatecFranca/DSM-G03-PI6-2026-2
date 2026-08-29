@@ -27,7 +27,8 @@ import {
   FileText,
   Clock,
   Building2,
-  Tags
+  Tags,
+  List
 } from "lucide-react"
 
 interface MenuItem {
@@ -150,6 +151,11 @@ export default function GestorAutenticadoLayout({
       title: "Departamentos",
       href: "/gestor/autenticado/departamentos",
       icon: <Briefcase size={20} />
+    },
+    {
+      title: "Solicitações",
+      href: "/gestor/autenticado/solicitacoes",
+      icon: <List size={20} />
     },
   ]
 

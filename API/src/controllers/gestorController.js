@@ -2,6 +2,246 @@
 const prisma = require('../prisma.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { gravarLog } = require('../utils/logGrava.js');
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+
+/**
+ * Gera usuário para Gestor ADMINUNIDADE
+ * Formato: GM + {letrasUnidade} + {numeroUnidade} + {letrasContador} + {numeroContador}
+ * 
+ * Exemplos:
+ * - Unidade 1, 1º ADMIN: GMAA001AAA001
+ * - Unidade 1, 2º ADMIN: GMAA001AAA002
+ * - Unidade 1, 999º ADMIN: GMAA001AAA999
+ * - Unidade 1, 1000º ADMIN: GMAA001AAB001
+ * - Unidade 1000, 1º ADMIN: GMAB001AAA001
+ */
+async function gerarUsuarioAdmUnidade(unidadeId) {
+    // 1. Calcular a parte fixa da UNIDADE (ex: AA001, AB001, ...)
+    const letrasUnidade = await calcularLetrasParaUnidade(unidadeId);
+    const numeroUnidade = await formatarNumero(unidadeId);
+    const parteUnidade = `${letrasUnidade}${numeroUnidade}`;
+
+    // 2. Buscar todos os gestores ADMINUNIDADE da unidade para determinar o próximo contador
+    const gestoresAdm = await prisma.gestor.findMany({
+        where: {
+            UnidadeId: unidadeId,
+            GestorNivel: 'ADMINUNIDADE'
+        },
+        orderBy: {
+            GestorId: 'asc'
+        }
+    });
+
+    // 3. Calcular o próximo número de contador (baseado na quantidade existente)
+    const contador = gestoresAdm.length + 1;
+
+    // 4. Calcular a parte do CONTADOR
+    const letrasContador = await calcularLetrasParaNumero(contador, 3);
+    const numeroContador = await calcularNumeroContador(contador);
+    const parteContador = `${letrasContador}${numeroContador}`;
+
+    // 5. Montar o usuário final
+    return `GM${parteUnidade}${parteContador}`;
+}
+
+/**
+ * Gera usuário para Gestor COMUM
+ * Formato: G + {letrasUnidade} + {numeroUnidade} + {letrasContador} + {numeroContador}
+ * 
+ * Exemplos:
+ * - Unidade 1, 1º gestor: GAA001AAA001
+ * - Unidade 1, 2º gestor: GAA001AAA002
+ * - Unidade 1, 999º gestor: GAA001AAA999
+ * - Unidade 1, 1000º gestor: GAA001AAB001
+ * - Unidade 1, 1001º gestor: GAA001AAB002
+ * - Unidade 1, 1999º gestor: GAA001AAB999
+ * - Unidade 1, 2000º gestor: GAA001AAC001
+ */
+async function gerarUsuarioGestorComum(unidadeId) {
+    // 1. Calcular a parte fixa da UNIDADE (ex: AA001, AB001, ...)
+    const letrasUnidade = await calcularLetrasParaUnidade(unidadeId);
+    const numeroUnidade = await formatarNumero(unidadeId);
+    const parteUnidade = `${letrasUnidade}${numeroUnidade}`;
+
+    // 2. Buscar todos os gestores COMUM da unidade para determinar o próximo contador
+    const gestoresComum = await prisma.gestor.findMany({
+        where: {
+            UnidadeId: unidadeId,
+            GestorNivel: 'COMUM'
+        },
+        orderBy: {
+            GestorId: 'asc'
+        }
+    });
+
+    // 3. Calcular o próximo número de contador (baseado na quantidade existente)
+    const contador = gestoresComum.length + 1;
+
+    // 4. Calcular a parte do CONTADOR
+    // As letras são baseadas no contador (1, 2, 3, ...)
+    const letrasContador = await calcularLetrasParaNumero(contador, 3);
+    // O número é o resto da divisão por 999 (vai de 1 a 999)
+    const numeroContador = await calcularNumeroContador(contador);
+    const parteContador = `${letrasContador}${numeroContador}`;
+
+    // 5. Montar o usuário final
+    return `G${parteUnidade}${parteContador}`;
+}
+
+/**
+ * Calcula as letras para a UNIDADE (AA, AB, AC, ..., ZZ)
+ * Baseado no ID da unidade
+ * 
+ * Exemplos:
+ * - Unidade 1: AA
+ * - Unidade 999: AA (ainda é AA, pois 999 < 1000)
+ * - Unidade 1000: AB
+ * - Unidade 1999: AB
+ * - Unidade 2000: AC
+ * - Unidade 25999: AA (25999 / 999 = 26, mas AA é 0)
+ * - Unidade 26000: AB (26000 / 999 = 26, mas AB é 1)
+ */
+async function calcularLetrasParaUnidade(unidadeId) {
+    const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const base = alfabeto.length;
+    
+    // Calcular quantos grupos de 999 já passaram
+    const grupo = Math.floor((unidadeId - 1) / 999);
+    let num = grupo;
+    let letras = '';
+    
+    for (let i = 0; i < 2; i++) {
+        const resto = num % base;
+        letras = alfabeto[resto] + letras;
+        num = Math.floor(num / base);
+    }
+    
+    return letras;
+}
+
+/**
+ * Calcula as letras para o CONTADOR (AAA, AAB, ..., ZZZ)
+ * Baseado no bloco do contador (cada bloco tem 999 números)
+ * 
+ * Exemplos:
+ * - 1º gestor (contador = 1): bloco = 0 → AAA, número = 001
+ * - 999º gestor (contador = 999): bloco = 0 → AAA, número = 999
+ * - 1000º gestor (contador = 1000): bloco = 1 → AAB, número = 001
+ * - 1999º gestor (contador = 1999): bloco = 1 → AAB, número = 999
+ * - 2000º gestor (contador = 2000): bloco = 2 → AAC, número = 001
+ */
+async function calcularLetrasParaNumero(contador, tamanho = 3) {
+    const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const base = alfabeto.length;
+    
+    // Calcular o bloco: a cada 999 gestores, sobe 1 bloco
+    // contador 1-999 → bloco 0
+    // contador 1000-1999 → bloco 1
+    // contador 2000-2999 → bloco 2
+    const bloco = Math.floor((contador - 1) / 999);
+    
+    let num = bloco;
+    let resultado = '';
+    
+    for (let i = 0; i < tamanho; i++) {
+        const resto = num % base;
+        resultado = alfabeto[resto] + resultado;
+        num = Math.floor(num / base);
+    }
+    
+    return resultado;
+}
+
+/**
+ * Calcula o número formatado para o CONTADOR
+ * O número vai de 001 a 999, resetando a cada bloco
+ */
+async function calcularNumeroContador(contador) {
+    // O número vai de 1 a 999
+    const numero = ((contador - 1) % 999) + 1;
+    return formatarNumero(numero);
+}
+
+/**
+ * Formata um número para 3 dígitos com zeros à esquerda
+ */
+async function formatarNumero(numero) {
+    return String(numero).padStart(3, '0');
+}
+
+/**
+ * Gera um usuário único (em caso de colisão)
+ */
+async function gerarUsuarioUnico(usuarioBase, nivel, unidadeId) {
+    let tentativa = 1;
+    let usuario = usuarioBase;
+    let existe = await prisma.gestor.findUnique({
+        where: { GestorUsuario: usuario }
+    });
+
+    while (existe) {
+        if (nivel === 'ADMINUNIDADE') {
+            // Para ADMINUNIDADE, tentar com número diferente
+            const numeros = ['001', '002', '003', '004', '005', '006', '007', '008', '009'];
+            if (tentativa <= numeros.length) {
+                usuario = usuarioBase.substring(0, 7) + numeros[tentativa - 1];
+            } else {
+                // Se todas as tentativas falharem, usar timestamp
+                usuario = `${usuarioBase}_${Date.now()}`;
+            }
+        } else {
+            // Para COMUM, adicionar um sufixo
+            usuario = `${usuarioBase}_${tentativa}`;
+        }
+
+        existe = await prisma.gestor.findUnique({
+            where: { GestorUsuario: usuario }
+        });
+        tentativa++;
+    }
+
+    return usuario;
+}
+
+/**
+ * Garante que o usuário gerado seja único
+ */
+async function garantirUsuarioUnico(usuarioBase, gestorIdIgnorar = null) {
+    let usuario = usuarioBase;
+    let tentativa = 1;
+    let existe = await prisma.gestor.findFirst({
+        where: {
+            GestorUsuario: usuario,
+            ...(gestorIdIgnorar && { GestorId: { not: gestorIdIgnorar } })
+        }
+    });
+
+    while (existe) {
+        // Tentar com variações
+        if (usuarioBase.includes('GM')) {
+            // ADMINUNIDADE: tentar números alternativos
+            const numeros = ['001', '002', '003', '004', '005', '006', '007', '008', '009'];
+            if (tentativa <= numeros.length) {
+                usuario = usuarioBase.substring(0, 7) + numeros[tentativa - 1];
+            } else {
+                usuario = `${usuarioBase}_${tentativa}`;
+            }
+        } else {
+            usuario = `${usuarioBase}_${tentativa}`;
+        }
+
+        existe = await prisma.gestor.findFirst({
+            where: {
+                GestorUsuario: usuario,
+                ...(gestorIdIgnorar && { GestorId: { not: gestorIdIgnorar } })
+            }
+        });
+        tentativa++;
+    }
+
+    return usuario;
+}
 
 class GestorController {
 
@@ -27,7 +267,7 @@ class GestorController {
             // Buscar gestor pelo usuário
             const gestor = await prisma.gestor.findUnique({
                 where: {
-                    GestorUsuario: GestorUsuario.toUpperCase().trim()
+                    GestorUsuario: GestorUsuario.toUpperCase().trim(), GestorStatus: 'ATIVO'
                 },
                 include: {
                     Unidade: {
@@ -87,7 +327,13 @@ class GestorController {
             // Retornar dados do gestor (sem a senha)
             const { GestorSenha: _, ...gestorSemSenha } = gestor;
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'LOGINGESTOR';
+            const LogDetelhe = 'Foi realizado login com o usuário gestor (' + gestorSemSenha.GestorUsuario + ')';
+            await gravarLog('', LogAcao, 'SISTEMA', LogDetelhe, gestorSemSenha.GestorId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Login realizado com sucesso',
                 data: {
                     usuario: gestorSemSenha,
@@ -98,7 +344,7 @@ class GestorController {
 
         } catch (error) {
             console.error('Erro no login do gestor:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro no login do gestor'
             });
         }
@@ -113,7 +359,6 @@ class GestorController {
                 GestorEmail,
                 GestorTelefone,
                 GestorCPF,
-                GestorUsuario,
                 GestorSenha,
                 GestorNivel,
                 GestorStatus
@@ -132,10 +377,6 @@ class GestorController {
 
             if (!GestorCPF || !GestorCPF.trim()) {
                 return res.status(400).json({ error: 'CPF é obrigatório' });
-            }
-
-            if (!GestorUsuario || !GestorUsuario.trim()) {
-                return res.status(400).json({ error: 'Usuário é obrigatório' });
             }
 
             if (!GestorSenha || !GestorSenha.trim()) {
@@ -170,10 +411,8 @@ class GestorController {
             // Verificar regras de permissão baseado no tipo de usuário logado
             if (usuarioLogado.usuarioTipo === 'ADMINISTRADOR') {
                 // ADMINISTRADOR pode cadastrar qualquer nível
-                // Não precisa de validação adicional
             }
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
-                // Buscar gestor logado para verificar nível e unidade
                 const gestorLogado = await prisma.gestor.findUnique({
                     where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
@@ -184,21 +423,18 @@ class GestorController {
                     });
                 }
 
-                // Verificar se é ADMINUNIDADE
                 if (gestorLogado.GestorNivel !== 'ADMINUNIDADE') {
                     return res.status(403).json({
                         error: 'Apenas gestores ADMINUNIDADE podem cadastrar novos gestores'
                     });
                 }
 
-                // ADMINUNIDADE não pode cadastrar outro ADMINUNIDADE
                 if (GestorNivel === 'ADMINUNIDADE') {
                     return res.status(403).json({
                         error: 'Gestores ADMINUNIDADE não podem cadastrar outros administradores de unidade'
                     });
                 }
 
-                // ADMINUNIDADE só pode cadastrar gestores da sua própria unidade
                 if (gestorLogado.UnidadeId !== parseInt(UnidadeId)) {
                     return res.status(403).json({
                         error: 'Você só pode cadastrar gestores na sua própria unidade'
@@ -220,7 +456,6 @@ class GestorController {
                 return res.status(404).json({ error: 'Unidade não encontrada' });
             }
 
-            // Verificar se a unidade está ativa
             if (unidade.UnidadeStatus !== 'ATIVA') {
                 return res.status(400).json({
                     error: 'Não é possível cadastrar gestores em uma unidade inativa ou bloqueada'
@@ -236,13 +471,25 @@ class GestorController {
                 return res.status(409).json({ error: 'CPF para Gestor já cadastrado nessa unidade' });
             }
 
-            // Verificar duplicidade de usuário
+            // ========== GERAR USUÁRIO AUTOMATICAMENTE ==========
+            let gestorUsuario = '';
+            const unidadeId = parseInt(UnidadeId);
+
+            if (GestorNivel === 'ADMINUNIDADE') {
+                gestorUsuario = await gerarUsuarioAdmUnidade(unidadeId);
+            } else {
+                // Gestor COMUM
+                gestorUsuario = await gerarUsuarioGestorComum(unidadeId);
+            }
+
+            // Verificar se o usuário gerado já existe (evitar colisão)
             const usuarioExistente = await prisma.gestor.findUnique({
-                where: { GestorUsuario: GestorUsuario.trim() }
+                where: { GestorUsuario: gestorUsuario }
             });
 
             if (usuarioExistente) {
-                return res.status(409).json({ error: 'Nome de usuário já está em uso' });
+                // Se já existe, gerar outro (recursivo ou com tentativa)
+                gestorUsuario = await await gerarUsuarioUnico(gestorUsuario, GestorNivel, unidadeId);
             }
 
             // Criptografar senha
@@ -253,15 +500,16 @@ class GestorController {
             // Criar gestor
             const gestor = await prisma.gestor.create({
                 data: {
-                    UnidadeId: parseInt(UnidadeId),
+                    UnidadeId: unidadeId,
                     GestorNome: GestorNome.trim(),
                     GestorEmail: GestorEmail?.trim() || null,
                     GestorTelefone: GestorTelefone?.trim() || null,
                     GestorCPF: GestorCPF.trim(),
-                    GestorUsuario: GestorUsuario.trim(),
+                    GestorUsuario: gestorUsuario,
                     GestorSenha: senhaHash,
                     GestorNivel: GestorNivel,
-                    GestorStatus: GestorStatus || 'ATIVO'
+                    GestorStatus: GestorStatus || 'ATIVO',
+                    GestorDtCadastro: getBrasilDateTime()
                 },
                 include: {
                     Unidade: {
@@ -277,14 +525,26 @@ class GestorController {
             // Remover senha do retorno
             const { GestorSenha: _, ...gestorSemSenha } = gestor;
 
-            res.status(201).json({
+            // --- Gravar log de criação
+            let LogAcao;
+            if (GestorNivel === 'ADMINUNIDADE'){
+                LogAcao = 'CADASTRARGESTORADM'
+            } else {
+                LogAcao = 'CADASTRARGESTORCOMUM'
+            }
+            const LogDetelhe = 'Foi cadastrado o gestor (' + gestorSemSenha.GestorUsuario + ') de ID (' + gestorSemSenha.GestorId + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorSemSenha.GestorId);
+            // ---
+
+            return res.status(201).json({
                 message: 'Gestor cadastrado com sucesso',
-                data: gestorSemSenha
+                data: gestorSemSenha,
+                usuarioGerado: gestorUsuario
             });
 
         } catch (error) {
             console.error('Erro ao cadastrar gestor:', error);
-            res.status(500).json({ error: 'Erro ao cadastrar gestor' });
+            return res.status(500).json({ error: 'Erro ao cadastrar gestor' });
         }
     }
 
@@ -298,7 +558,7 @@ class GestorController {
                 GestorEmail,
                 GestorTelefone,
                 GestorCPF,
-                GestorUsuario,
+                GestorUsuario, // Será ignorado se a unidade mudar
                 GestorSenha,
                 GestorSenhaAtual,
                 GestorNivel,
@@ -337,7 +597,6 @@ class GestorController {
             }
             // CASO 2: GESTOR tentando alterar
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
-                // Buscar gestor logado (apenas se estiver ativo)
                 gestorLogado = await prisma.gestor.findUnique({
                     where: {
                         GestorId: usuarioLogado.usuarioId,
@@ -351,29 +610,23 @@ class GestorController {
                     });
                 }
 
-                // CASO 2.1: Gestor alterando a si mesmo
                 if (isProprioGestor) {
-                    podeAlterar = true; // Pode alterar, mas com restrições
+                    podeAlterar = true;
                 }
-                // CASO 2.2: Gestor alterando outro gestor
                 else {
-                    // Gestor COMUM não pode alterar ninguém
                     if (gestorLogado.GestorNivel === 'COMUM') {
                         return res.status(403).json({
                             error: 'Gestores comuns não podem alterar dados de outros gestores'
                         });
                     }
 
-                    // ADMINUNIDADE pode alterar desde que:
                     if (gestorLogado.GestorNivel === 'ADMINUNIDADE') {
-                        // 1. Seja da mesma unidade
                         if (gestorLogado.UnidadeId !== gestorAlterar.UnidadeId) {
                             return res.status(403).json({
                                 error: 'Você só pode alterar gestores da sua própria unidade'
                             });
                         }
 
-                        // 2. Não pode alterar outro ADMINUNIDADE
                         if (gestorAlterar.GestorNivel === 'ADMINUNIDADE') {
                             return res.status(403).json({
                                 error: 'Gestores ADMINUNIDADE não podem alterar outros administradores de unidade'
@@ -400,14 +653,12 @@ class GestorController {
             // VALIDAÇÕES ESPECÍFICAS PARA AUTO-ALTERAÇÃO
             // =============================================
             if (isProprioGestor) {
-                // Gestor alterando a si mesmo precisa confirmar senha atual
                 if (!GestorSenhaAtual || !GestorSenhaAtual.trim()) {
                     return res.status(400).json({
                         error: 'Senha atual é obrigatória para alterar seus dados'
                     });
                 }
 
-                // Verificar senha atual com pepper
                 const senhaAtualComPepper = process.env.PEPPER_SENHA_GESTOR + GestorSenhaAtual.trim();
                 const senhaAtualValida = await bcrypt.compare(senhaAtualComPepper, gestorAlterar.GestorSenha);
 
@@ -417,21 +668,18 @@ class GestorController {
                     });
                 }
 
-                // Gestor NÃO pode alterar próprio nível
                 if (GestorNivel !== undefined && GestorNivel !== gestorAlterar.GestorNivel) {
                     return res.status(403).json({
                         error: 'Você não pode alterar seu próprio nível de acesso'
                     });
                 }
 
-                // Gestor NÃO pode alterar próprio status (ativar/inativar-se)
                 if (GestorStatus !== undefined && GestorStatus !== gestorAlterar.GestorStatus) {
                     return res.status(403).json({
                         error: 'Você não pode alterar seu próprio status'
                     });
                 }
 
-                // Gestor NÃO pode alterar própria unidade
                 if (UnidadeId !== undefined && UnidadeId !== gestorAlterar.UnidadeId) {
                     return res.status(403).json({
                         error: 'Você não pode alterar sua própria unidade'
@@ -440,13 +688,13 @@ class GestorController {
             }
 
             // =============================================
-            // PREPARAR DADOS PARA ATUALIZAÇÃO
+            // VERIFICAR SE A UNIDADE VAI MUDAR
             // =============================================
-            const dadosAtualizacao = {};
+            const unidadeVaiMudar = UnidadeId !== undefined && UnidadeId !== gestorAlterar.UnidadeId;
+            let novaUnidadeId = gestorAlterar.UnidadeId;
 
-            // Unidade (apenas ADMIN alterando outros)
-            if (UnidadeId !== undefined && UnidadeId !== gestorAlterar.UnidadeId) {
-                // Se não for admin, não pode
+            if (unidadeVaiMudar) {
+                // Apenas ADMIN pode mudar unidade
                 if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR') {
                     return res.status(403).json({
                         error: 'Você não tem permissão para alterar a unidade'
@@ -467,7 +715,45 @@ class GestorController {
                     });
                 }
 
-                dadosAtualizacao.UnidadeId = parseInt(UnidadeId);
+                novaUnidadeId = parseInt(UnidadeId);
+            }
+
+            // =============================================
+            // PREPARAR DADOS PARA ATUALIZAÇÃO
+            // =============================================
+            const dadosAtualizacao = {};
+
+            // =============================================
+            // RECALCULAR USUÁRIO SE A UNIDADE MUDOU
+            // =============================================
+            let novoUsuarioGerado = null;
+
+            if (unidadeVaiMudar) {
+                // Se a unidade mudou, recalcular o usuário automaticamente
+                dadosAtualizacao.UnidadeId = novaUnidadeId;
+
+                // Gerar novo usuário baseado na nova unidade e nível
+                if (gestorAlterar.GestorNivel === 'ADMINUNIDADE') {
+                    novoUsuarioGerado = await gerarUsuarioAdmUnidade(novaUnidadeId);
+                } else {
+                    // Gestor COMUM
+                    novoUsuarioGerado = await gerarUsuarioGestorComum(novaUnidadeId);
+                }
+
+                // Verificar se o novo usuário já existe (evitar colisão)
+                const usuarioExistente = await prisma.gestor.findFirst({
+                    where: {
+                        GestorUsuario: novoUsuarioGerado,
+                        GestorId: { not: gestorId }
+                    }
+                });
+
+                if (usuarioExistente) {
+                    // Se já existe, gerar outro
+                    novoUsuarioGerado = await gerarUsuarioUnico(novoUsuarioGerado, gestorAlterar.GestorNivel, novaUnidadeId);
+                }
+
+                dadosAtualizacao.GestorUsuario = novoUsuarioGerado;
             }
 
             // Nome
@@ -488,8 +774,10 @@ class GestorController {
                 dadosAtualizacao.GestorTelefone = GestorTelefone?.trim() || null;
             }
 
-            if (usuarioLogado.usuarioTipo === 'ADMINISTRADOR') {
-                // CPF
+            // CPF (apenas ADMIN e ADMINUNIDADE podem alterar)
+            if (usuarioLogado.usuarioTipo === 'ADMINISTRADOR' ||
+                (gestorLogado && gestorLogado.GestorNivel === 'ADMINUNIDADE' && !isProprioGestor)) {
+
                 if (GestorCPF !== undefined && gestorAlterar.GestorCPF !== GestorCPF.trim()) {
                     if (!GestorCPF.trim()) {
                         return res.status(400).json({ error: 'CPF não pode ser vazio' });
@@ -508,8 +796,11 @@ class GestorController {
 
                     dadosAtualizacao.GestorCPF = GestorCPF.trim();
                 }
+            }
 
-                // Usuário
+            // Usuário (apenas ADMIN pode alterar manualmente)
+            if (usuarioLogado.usuarioTipo === 'ADMINISTRADOR' && !unidadeVaiMudar) {
+                // Se a unidade NÃO mudou, pode alterar o usuário manualmente
                 if (GestorUsuario !== undefined && gestorAlterar.GestorUsuario !== GestorUsuario.trim()) {
                     if (!GestorUsuario.trim()) {
                         return res.status(400).json({ error: 'Usuário não pode ser vazio' });
@@ -528,49 +819,6 @@ class GestorController {
 
                     dadosAtualizacao.GestorUsuario = GestorUsuario.trim();
                 }
-            } else if (usuarioLogado.usuarioTipo !== 'GESTOR' && gestorLogado.GestorNivel === 'ADMINUNIDADE' && !isProprioGestor) {
-
-                // CPF
-                if (GestorCPF !== undefined && gestorAlterar.GestorCPF !== GestorCPF.trim()) {
-                    if (!GestorCPF.trim()) {
-                        return res.status(400).json({ error: 'CPF não pode ser vazio' });
-                    }
-
-                    const cpfExistente = await prisma.gestor.findFirst({
-                        where: {
-                            GestorCPF: GestorCPF.trim(),
-                            GestorId: { not: gestorId }
-                        }
-                    });
-
-                    if (cpfExistente) {
-                        return res.status(409).json({ error: 'CPF já cadastrado para outro gestor' });
-                    }
-
-                    dadosAtualizacao.GestorCPF = GestorCPF.trim();
-                }
-
-                // Usuário
-                if (GestorUsuario !== undefined && gestorAlterar.GestorUsuario !== GestorUsuario.trim()) {
-                    if (!GestorUsuario.trim()) {
-                        return res.status(400).json({ error: 'Usuário não pode ser vazio' });
-                    }
-
-                    const usuarioExistente = await prisma.gestor.findFirst({
-                        where: {
-                            GestorUsuario: GestorUsuario.trim(),
-                            GestorId: { not: gestorId }
-                        }
-                    });
-
-                    if (usuarioExistente) {
-                        return res.status(409).json({ error: 'Nome de usuário já está em uso' });
-                    }
-
-                    dadosAtualizacao.GestorUsuario = GestorUsuario.trim();
-                }
-            } else {
-                dadosAtualizacao.GestorCPF = gestorAlterar.GestorCPF;
             }
 
             // Senha (com pepper)
@@ -579,11 +827,7 @@ class GestorController {
                     return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
                 }
 
-                // Se for auto-alteração, já validou a senha atual
-                // Se for admin alterando outro, não precisa validar senha atual
                 if (!isProprioGestor && usuarioLogado.usuarioTipo !== 'ADMINISTRADOR') {
-                    // ADMINUNIDADE alterando gestor comum precisa da senha atual?
-                    // Por segurança, vamos exigir confirmação
                     if (!GestorSenhaAtual || !GestorSenhaAtual.trim()) {
                         return res.status(400).json({
                             error: 'Senha atual do gestor é obrigatória para alterar a senha'
@@ -607,7 +851,7 @@ class GestorController {
 
             // Nível (apenas ADMIN pode alterar)
             if (GestorNivel !== undefined) {
-                if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR' && gestorAlterar.GestorNivel !== GestorNivel) {
+                if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR') {
                     return res.status(403).json({
                         error: 'Apenas administradores podem alterar o nível do gestor'
                     });
@@ -621,11 +865,23 @@ class GestorController {
                 }
 
                 dadosAtualizacao.GestorNivel = GestorNivel;
+
+                // Se o nível mudou, recalcular o usuário também
+                if (GestorNivel !== gestorAlterar.GestorNivel) {
+                    if (GestorNivel === 'ADMINUNIDADE') {
+                        const novoUsuario = await gerarUsuarioAdmUnidade(dadosAtualizacao.UnidadeId || novaUnidadeId);
+                        dadosAtualizacao.GestorUsuario = await garantirUsuarioUnico(novoUsuario, gestorId);
+                    } else {
+                        // Mudou para COMUM
+                        const novoUsuario = await gerarUsuarioGestorComum(dadosAtualizacao.UnidadeId || novaUnidadeId);
+                        dadosAtualizacao.GestorUsuario = await garantirUsuarioUnico(novoUsuario, gestorId);
+                    }
+                }
             }
 
             // Status (apenas ADMIN pode alterar)
             if (GestorStatus !== undefined) {
-                if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR' && gestorAlterar.GestorNivel !== GestorNivel) {
+                if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR') {
                     return res.status(403).json({
                         error: 'Apenas administradores podem alterar o status do gestor'
                     });
@@ -661,16 +917,27 @@ class GestorController {
             });
 
             // Remover senha do retorno
-            const { GestorSenha: _, ...gestorSemSenha } = gestorAtualizado;
+            const { GestorSenha: semSenha1, ...gestorSemSenha } = gestorAtualizado;
+            const { GestorSenha: semSenha2, ...gestorAntesSemSenha } = gestorAlterar;
 
-            res.status(200).json({
+            const { GestorId: semID1, ...gestorAntesSemSenhaID } = gestorAntesSemSenha;
+            const { GestorId: semID2, ...gestorSemSenhaID } = gestorSemSenha;
+
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERARGESTOR';
+            const LogDetelhe = 'Foi alterado o Gestor de Usuário Antes da Alteração (' + gestorAntesSemSenhaID.GestorUsuario + ') / Usuário depois da alteração (' + gestorSemSenhaID.GestorUsuario + '), dados antes da alteração (' + JSON.stringify(gestorAntesSemSenhaID) + ')' + ', dados depois da alteração (' + JSON.stringify(gestorSemSenhaID) +  ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorSemSenha.GestorId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Gestor atualizado com sucesso',
-                data: gestorSemSenha
+                data: gestorSemSenha,
+                ...(novoUsuarioGerado && { usuarioRecalculado: novoUsuarioGerado })
             });
 
         } catch (error) {
             console.error('Erro ao alterar gestor:', error);
-            res.status(500).json({ error: 'Erro ao alterar gestor' });
+            return res.status(500).json({ error: 'Erro ao alterar gestor' });
         }
     }
 
@@ -693,7 +960,7 @@ class GestorController {
             // Aplicar filtros de acordo com permissão
             if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado) {
@@ -761,7 +1028,7 @@ class GestorController {
                 return gestorSemSenha;
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: gestoresSemSenha,
                 paginacao: {
                     paginaAtual,
@@ -773,7 +1040,7 @@ class GestorController {
 
         } catch (error) {
             console.error('Erro ao listar gestores:', error);
-            res.status(500).json({ error: 'Erro ao listar gestores' });
+            return res.status(500).json({ error: 'Erro ao listar gestores' });
         }
     }
 
@@ -809,7 +1076,7 @@ class GestorController {
             // Verificar permissão de visualização
             if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado && gestorLogado.UnidadeId !== gestor.UnidadeId) {
@@ -828,13 +1095,13 @@ class GestorController {
             // Remover senha do retorno
             const { GestorSenha: _, ...gestorSemSenha } = gestor;
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: gestorSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao buscar gestor:', error);
-            res.status(500).json({ error: 'Erro ao buscar gestor' });
+            return res.status(500).json({ error: 'Erro ao buscar gestor' });
         }
     }
 
@@ -880,7 +1147,7 @@ class GestorController {
             }
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {
                 gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (!gestorLogado) {
@@ -934,14 +1201,20 @@ class GestorController {
             // Remover senha do retorno
             const { GestorSenha: _, ...gestorSemSenha } = gestorAtualizado;
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERARSTATUSGESTOR';
+            const LogDetelhe = 'Foi alterado o status do Gestor (' + gestorSemSenha.GestorUsuario + '), de ('+ gestorAlterar.GestorStatus + ' para ' + gestorSemSenha.GestorStatus + ')';
+            await gravarLog(String(usuarioLogado.usuarioId), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorAtualizado.GestorId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Status do gestor atualizado com sucesso',
                 data: gestorSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao alterar status do gestor:', error);
-            res.status(500).json({ error: 'Erro ao alterar status do gestor' });
+            return res.status(500).json({ error: 'Erro ao alterar status do gestor' });
         }
     }
 
@@ -960,7 +1233,7 @@ class GestorController {
             }
 
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: req.usuario.usuarioId }
+                where: { GestorId: req.usuario.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             const totalPessoas = await prisma.pessoa.count({
@@ -1080,7 +1353,7 @@ class GestorController {
             FALTAINFORMACAO // Gestor Identifivou que falta informação, gestor precisa solitar detalhes para pessoa que abriu
             */
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: {
                     totalChamadosAnalisados,
                     totalChamadosAtribuidos,
@@ -1101,12 +1374,13 @@ class GestorController {
 
         } catch (error) {
             console.error('Erro ao montar dashboardo gestor:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro ao montar dashboardo gestor'
             });
         }
 
     }
+    
 }
 
 module.exports = new GestorController();

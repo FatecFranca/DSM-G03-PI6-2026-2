@@ -11,9 +11,11 @@ datasource db {
 
 // Tabelas (Models)
 model Administrador {
-  AdministradorId       Int    @id @default(autoincrement())
-  AdministradorUsuario  String @db.VarChar(20) @unique
+  AdministradorId       Int                   @id @default(autoincrement())
+  AdministradorUsuario  String                @db.VarChar(20) @unique
   AdministradorSenha    String
+  AdministradorStatus   AdministradorStatus?  @default(ATIVO)
+  AdministradorNome     String?               @db.VarChar(100)
 }
 
 model Unidade {
@@ -31,6 +33,7 @@ model Unidade {
   Chamado               Chamado[]
   Equipe                Equipe[]
   Tecnico               Tecnico[]
+  Solicitacao           Solicitacao[]
 }
 
 model Gestor {
@@ -230,6 +233,37 @@ model Notificacao {
   @@index([NotificacaoUsuId, NotificacaoData])         
 }
 
+model Solicitacao {
+  SolicitacaoId                   String    @id @default(uuid())
+  UnidadeId                       Int?      // Pode não ter relação com unidades
+  SolicitacaoTipo                 String    @db.VarChar(50) // Tipo (Cadastro pessoas, alteração dados, etc)
+  SolicitacaoDescricao            String
+  SolicitacaoIdRelacional         String?   // Pode ser usado como ID da pessoa ou gestor
+  SolicitacaoDtCadastro           DateTime  @default(now())
+  SolicitacaoDtFinalizacao        DateTime?
+
+  // Para gestores/pessoas cadastradas não é necessário informar
+  SolicitacaoSolicitanteNome      String?             @db.VarChar(100)
+  SolicitacaoSolicitanteEmail     String?             @db.VarChar(256)
+  SolicitacaoSolicitanteTelefone  String?             @db.VarChar(256)
+  SolicitacaoUsuarioFinalizou     String?             @db.VarChar(20)
+  SolicitacaoStatus               SolicitacaoStatus   @default(PENDENTE)
+
+  Unidade                         Unidade?            @relation(fields: [UnidadeId], references: [UnidadeId])
+  AtividadeSolicitacao            AtividadeSolicitacao[]
+}
+
+model AtividadeSolicitacao {
+  AtividadeSolicitacaoId             String      @id @default(uuid())
+  SolicitacaoId                      String
+  AtividadeSolicitacaoDescricao      String
+  AtividadeSolicitacaoDtRealizacao   DateTime    @default(now())
+  AtividadeSolicitacaoUsuario        String      @db.VarChar(20)
+
+  Solicitacao  Solicitacao  @relation(fields: [SolicitacaoId], references: [SolicitacaoId])
+}
+
+
 
 // Enums
 enum UnidadeStatus {
@@ -338,4 +372,19 @@ enum UsuarioVer {
   TECNICO
   PESSOA
   GESTEC
+}
+
+enum SolicitacaoStatus {
+  PENDENTE
+  EMATENDIMENTO
+  CONCLUIDO
+  RECUSADO
+  FALTAINFORMACAO
+  CANCELADO
+}
+
+enum AdministradorStatus {
+  ATIVO
+  INATIVO
+  BLOQUEADO
 }

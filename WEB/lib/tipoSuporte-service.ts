@@ -5,6 +5,7 @@ export interface TipoSuporte {
   TipSupNom: string;
   TipSupStatus: 'ATIVO' | 'INATIVO';
   TipSupDtCadastro: string;
+  TipSupDescricao: string;
   UnidadeId: number;
   Unidade?: {
     UnidadeId: number;
@@ -102,6 +103,7 @@ export async function cadastrarTipoSuporte(data: {
   UnidadeId: number;
   TipSupNom: string;
   TipSupStatus?: 'ATIVO' | 'INATIVO';
+  TipSupDescricao?: string;
 }) {
   try {
     const response = await apiClient.post('/tiposuporte', data);
@@ -117,6 +119,7 @@ export async function alterarTipoSuporte(
   data: {
     TipSupNom?: string;
     TipSupStatus?: 'ATIVO' | 'INATIVO';
+    TipSupDescricao?: string;
   }
 ) {
   try {
@@ -147,6 +150,8 @@ export type VinculoTipoSuporte = {
     TipSupId: number
     UnidadeId: number
     TipSupUniStatus: 'ATIVO' | 'INATIVO'
+    TipSupUniDtVin: string
+    TipSupUniDtIna: string
     Unidade?: {
         UnidadeId: number
         UnidadeNome: string

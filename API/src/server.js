@@ -44,6 +44,7 @@ const equipeRouter = require('./routes/equipeRouter');
 const tipoSuporteRouter = require('./routes/tipoSuporteRouter');
 const chamadoRouter = require('./routes/chamadoRouter');
 const atividadeChamadoRouter = require('./routes/atividadeChamadoRouter');
+const solicitacaoRouter = require('./routes/solicitacaoRouter');
 
 app.use('/api/admin', adminRouter);
 app.use('/api/unidade', unidadeRouter);
@@ -55,6 +56,7 @@ app.use('/api/equipe', equipeRouter);
 app.use('/api/tiposuporte', tipoSuporteRouter);
 app.use('/api/chamado', chamadoRouter);
 app.use('/api/atividadechamado', atividadeChamadoRouter);
+app.use('/api/solicitacao', solicitacaoRouter);
 
 // Servir os arquivos estáticos da documentação
 // Todos os arquivos dentro de 'public' serão acessíveis.

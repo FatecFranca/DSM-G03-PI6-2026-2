@@ -2,6 +2,7 @@
 const prisma = require('../prisma.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { gravarLog } = require('../utils/logGrava.js');
 
 class AdminController {
 
@@ -25,7 +26,7 @@ class AdminController {
 
             // Buscar administrador pelo usuário
             const administrador = await prisma.administrador.findUnique({
-                where: { AdministradorUsuario: usuarioTrim }
+                where: { AdministradorUsuario: usuarioTrim, AdministradorStatus: 'ATIVO' }
             });
 
             if (!administrador) {
@@ -55,10 +56,16 @@ class AdminController {
             const adminSemSenha = {
                 AdministradorId: administrador.AdministradorId,
                 AdministradorUsuario: administrador.AdministradorUsuario,
-                // Adicione outros campos que quiser retornar
+                AdministradorNome: administrador.AdministradorNome
             };
 
-            res.status(200).json({
+            // --- Gravar alteração de status de vinculo de unidade e tipo de suporte
+            const LogAcao = 'LOGINADMINISTRADOR';
+            const LogDetelhe = 'Foi realizado login polo administrador de ID (' + adminSemSenha.AdministradorId + ')';
+            await gravarLog('', LogAcao, 'SISTEMA', LogDetelhe, String(adminSemSenha.AdministradorId).trim());
+            // ---
+
+            return res.status(200).json({
                 message: 'Login realizado com sucesso',
                 data: {
                     usuario: adminSemSenha,
@@ -69,14 +76,14 @@ class AdminController {
 
         } catch (error) {
             console.error('Erro no login do administrador:', error);
-            res.status(500).json({ error: 'Erro no login do administrador' });
+            return res.status(500).json({ error: 'Erro no login do administrador' });
         }
     }
 
     // Alterar dados do admin
     async alterarAdmin(req, res) {
         try {
-            const { AdministradorUsuario, AdministradorSenha, AdministradorSenhaAtual } = req.body;
+            const { AdministradorUsuario, AdministradorSenha, AdministradorSenhaAtual, AdministradorNome } = req.body;
 
             // Verificar se o usuário é ADMINISTRADOR
             if (req.usuario.usuarioTipo !== 'ADMINISTRADOR') {
@@ -142,6 +149,9 @@ class AdminController {
                 dadosAtualizacao.AdministradorSenha = await bcrypt.hash(senhaComPepper, salt);
             }
 
+            // Sem validação de nulicidade pois pode ser nulo
+            dadosAtualizacao.AdministradorNome = AdministradorNome;
+
             // Atualizar admin
             const administradorAtualizado = await prisma.administrador.update({
                 where: { AdministradorId: usuarioId },
@@ -149,16 +159,23 @@ class AdminController {
             });
 
             // Retornar dados sem senha
-            const { AdministradorSenha: _, ...adminSemSenha } = administradorAtualizado;
+            const { AdministradorSenha: removerSenha1, ...adminSemSenha } = administradorAtualizado;
+            const { AdministradorSenha: removerSenha2, ...adminAntesSemSenha } = adminAtual;
 
-            res.status(200).json({
+            // --- Gravar alteração de status de vinculo de unidade e tipo de suporte
+            const LogAcao = 'ALTERARADMINISTRADOR';
+            const LogDetelhe = 'Foram alterados os dados do administrador de ID (' + adminSemSenha.AdministradorId + '), dados antes da alteração (' + JSON.stringify(adminAntesSemSenha) + '), dados depois da alteração (' + JSON.stringify(adminSemSenha) + ')';
+            await gravarLog('', LogAcao, 'SISTEMA', LogDetelhe, String(adminSemSenha.AdministradorId).trim());
+            // ---
+
+            return res.status(200).json({
                 message: 'Dados atualizados com sucesso',
                 data: adminSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao alterar administrador:', error);
-            res.status(500).json({ error: 'Erro ao alterar administrador' });
+            return res.status(500).json({ error: 'Erro ao alterar administrador' });
         }
     }
 
@@ -231,7 +248,7 @@ class AdminController {
 
             const totalDepartamentos = await prisma.departamento.count();
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: {
                     totalUnidadesAtivas,
                     totalUnidadesInativas,
@@ -249,12 +266,13 @@ class AdminController {
 
         } catch (error) {
             console.error('Erro ao montar dashboardo administrador:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro ao montar dashboardo administrador'
             });
         }
 
     }
+
 }
 
 module.exports = new AdminController();

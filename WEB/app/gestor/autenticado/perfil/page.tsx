@@ -373,7 +373,7 @@ export default function PerfilGestorPage() {
                             </label>
                             <input
                                 type="text"
-                                value={formatPhone(formData.GestorTelefone)}
+                                value={formatPhone(formData.GestorTelefone ?? '')}
                                 onChange={(e) => setFormData({ ...formData, GestorTelefone: e.target.value.replace(/\D/g, '') })}
                                 maxLength={15}
                                 className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-gray-100"
@@ -518,7 +518,11 @@ export default function PerfilGestorPage() {
             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
                     <strong>Informações importantes:</strong> Você não pode alterar seu usuário, CPF, nível, unidade ou status.
-                    Essas informações são gerenciadas pelo administrador geral do sistema.
+                    Essas informações são gerenciadas pelo {user?.GestorNivel === 'ADMINUNIDADE' ? (
+                                'Administrador Geral do Sistema'
+                            ) : (
+                                'Gestor Administrador da Unidade'
+                            )}
                 </p>
             </div>
         </div>

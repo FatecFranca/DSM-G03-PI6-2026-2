@@ -1,5 +1,6 @@
 // src/controllers/equipeController.js
 const prisma = require('../prisma.js');
+const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 
 class EquipeController {
 
@@ -31,7 +32,7 @@ class EquipeController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -101,7 +102,7 @@ class EquipeController {
                     EquipeNome: EquipeNome.trim(),
                     EquipeDescricao: EquipeDescricao.trim(),
                     EquipeStatus: EquipeStatus || 'ATIVA',
-                    EquipeDtCadastro: new Date()
+                    EquipeDtCadastro: getBrasilDateTime()
                 },
                 include: {
                     Unidade: {
@@ -114,7 +115,7 @@ class EquipeController {
                 }
             });
 
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Equipe cadastrada com sucesso',
                 data: equipe
             });
@@ -146,7 +147,7 @@ class EquipeController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -290,7 +291,7 @@ class EquipeController {
             // Aplicar filtros de acordo com permissão
             if (usuarioLogado?.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado) {
@@ -448,7 +449,7 @@ class EquipeController {
             // Verificar permissão de visualização para gestores
             if (usuarioLogado?.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado && gestorLogado.UnidadeId !== equipe.UnidadeId) {
@@ -501,7 +502,7 @@ class EquipeController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -604,7 +605,7 @@ class EquipeController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -702,7 +703,8 @@ class EquipeController {
                 data: {
                     EquipeId: equipeId,
                     TecnicoId: TecnicoId,
-                    TecEquStatus: statusVinculo
+                    TecEquStatus: statusVinculo,
+                    TecEquDtVin: getBrasilDateTime()
                 },
                 include: {
                     Equipe: {
@@ -723,14 +725,14 @@ class EquipeController {
                 }
             });
 
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Técnico adicionado à equipe com sucesso',
                 data: vinculo
             });
 
         } catch (error) {
             console.error('Erro ao adicionar técnico à equipe:', error);
-            res.status(500).json({ error: 'Erro ao adicionar técnico à equipe' });
+            return res.status(500).json({ error: 'Erro ao adicionar técnico à equipe' });
         }
     }
 
@@ -766,7 +768,7 @@ class EquipeController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -876,7 +878,7 @@ class EquipeController {
 
             // Buscar gestor logado
             const gestorLogado = await prisma.gestor.findUnique({
-                where: { GestorId: usuarioLogado.usuarioId }
+                where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
             });
 
             if (!gestorLogado) {
@@ -965,7 +967,7 @@ class EquipeController {
             // Verificar permissão
             if (usuarioLogado?.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado) {
@@ -1055,7 +1057,7 @@ class EquipeController {
             // Verificar permissão
             if (usuarioLogado?.usuarioTipo === 'GESTOR') {
                 const gestorLogado = await prisma.gestor.findUnique({
-                    where: { GestorId: usuarioLogado.usuarioId }
+                    where: { GestorId: usuarioLogado.usuarioId, GestorStatus: 'ATIVO' }
                 });
 
                 if (gestorLogado) {
