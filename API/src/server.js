@@ -31,7 +31,6 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // API Routes
 const adminRouter = require('./routes/adminRouter');
@@ -57,11 +56,6 @@ app.use('/api/tiposuporte', tipoSuporteRouter);
 app.use('/api/chamado', chamadoRouter);
 app.use('/api/atividadechamado', atividadeChamadoRouter);
 app.use('/api/solicitacao', solicitacaoRouter);
-
-// Servir os arquivos estáticos da documentação
-// Todos os arquivos dentro de 'public' serão acessíveis.
-// Ex: public/docpi/index.html -> /docpi/index.html
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Health check
 app.get('/health', (req, res) => {

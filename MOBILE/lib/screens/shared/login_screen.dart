@@ -11,7 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
-import './create_solicitacao_screen.dart';
+import './create_request_screen.dart';
 
 // [Manter UpperCaseTextFormatter e CpfFormatter idênticos ao original]
 class UpperCaseTextFormatter extends TextInputFormatter {
