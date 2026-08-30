@@ -60,13 +60,13 @@ O gerenciamento Web apresenta as seguintes telas e funcionalidades:
 ### Diagrama Caso de Uso:
 <img src="/PRINTS/diagrama-caso-uso.png">
 
-### 📕 [Levantamento de Requisitos](https://github.com/FatecFranca/DSM-G06-PI4-2025-2/raw/main/CDCP-Levantamento-Requisitos.pdf?raw=1)
+### 📕 [Levantamento de Requisitos](./DOCS/CDCP-Levantamento-Requisitos.pdf?raw=true)
 
-### 📕 [Documentação Treinamento Modelo IA (CART)](https://github.com/FatecFranca/DSM-G06-PI4-2025-2/raw/main/Documentacao-Processamento-Completo.pdf?raw=1)
+### 📕 [Documentação Treinamento Modelo IA (CART)](./DOCS/Documentacao-Processamento-Completo.pdf?raw=true)
 
-### 📕 [Justificativa Mensageria e Mineração de Dados](https://github.com/FatecFranca/DSM-G06-PI4-2025-2/raw/main/Justificativa-Mensageria-MD.pdf?raw=1)
+### 📕 [Justificativa Mensageria e Mineração de Dados](./DOCS/Justificativa-Mensageria-MD.pdf?raw=true)
 
-### 🎬 [Elevator Pitch](https://github.com/FatecFranca/DSM-G06-PI4-2025-2/raw/main/Documentacao-Processamento-Completo?raw=1)
+### 🎬 [Elevator Pitch](https://youtu.be/JnMI5b-C7w4)
 
 <br>
 
