@@ -52,7 +52,7 @@ O gerenciamento Web apresenta as seguintes telas e funcionalidades:
 <img src="/PRINTS/fluxo-chamados.jpg">
 
 ### Diagrama Entidade Relacionamento:
-<img src="/PRINTS/der-bd.png">
+<img src="/PRINTS/der-bd.jpg">
 
 ### Modelo Lógico - BD:
 <img src="/PRINTS/modelo-logico.png">
