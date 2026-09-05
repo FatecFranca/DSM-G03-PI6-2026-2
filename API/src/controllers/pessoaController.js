@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
 
 class PessoaController {
 
@@ -87,7 +88,7 @@ class PessoaController {
             // Retornar dados da pessoa (sem a senha)
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
 
-            res.status(200).json({
+            return res.status(200).json({
                 message: 'Login realizado com sucesso',
                 data: {
                     usuario: pessoaSemSenha,
@@ -98,7 +99,7 @@ class PessoaController {
 
         } catch (error) {
             console.error('Erro no login da pessoa:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro no login da pessoa'
             });
         }
@@ -211,11 +212,17 @@ class PessoaController {
                 return res.status(409).json({ error: 'CPF já cadastrado' });
             }
 
-            // Validar email se fornecido (formato básico)
+            // Validar email se fornecido
             if (PessoaEmail && PessoaEmail.trim()) {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(PessoaEmail.trim())) {
+                if (!validarEmail(PessoaEmail)) {
                     return res.status(400).json({ error: 'E-mail inválido' });
+                }
+            }
+
+            // Validar teelfone se fornecido
+            if (PessoaTelefone && PessoaTelefone.trim()) {
+                if (!validarTelefone(PessoaTelefone)) {
+                    return res.status(400).json({ error: 'Telefone inválido' });
                 }
             }
 
@@ -250,14 +257,14 @@ class PessoaController {
             // Remover senha do retorno
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
 
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Pessoa cadastrada com sucesso',
                 data: pessoaSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao cadastrar pessoa:', error);
-            res.status(500).json({ error: 'Erro ao cadastrar pessoa' });
+            return res.status(500).json({ error: 'Erro ao cadastrar pessoa' });
         }
     }
 
@@ -398,17 +405,19 @@ class PessoaController {
                 dadosAtualizacao.PessoaNome = PessoaNome.trim();
             }
 
-            if (PessoaEmail !== undefined) {
-                if (PessoaEmail && PessoaEmail.trim()) {
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(PessoaEmail.trim())) {
-                        return res.status(400).json({ error: 'E-mail inválido' });
-                    }
+            // Validar teelfone se fornecido
+            if (PessoaEmail && PessoaEmail.trim()) {
+                if (!validarEmail(PessoaEmail)) {
+                    return res.status(400).json({ error: 'E-mail inválido' });
                 }
                 dadosAtualizacao.PessoaEmail = PessoaEmail?.trim() || null;
             }
 
-            if (PessoaTelefone !== undefined) {
+            // Validar teelfone se fornecido
+            if (PessoaTelefone && PessoaTelefone.trim()) {
+                if (!validarTelefone(PessoaTelefone)) {
+                    return res.status(400).json({ error: 'Telefone inválido' });
+                }
                 dadosAtualizacao.PessoaTelefone = PessoaTelefone?.trim() || null;
             }
 

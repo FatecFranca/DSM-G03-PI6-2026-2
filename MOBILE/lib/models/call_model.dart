@@ -5,6 +5,7 @@ class CallModel {
   final String pessoaId;
   final int unidadeId;
   final String descricaoInicial;
+  final String? descricaoFormatada;
   final String? titulo;
   final String status;
   final String urgencia;
@@ -21,6 +22,7 @@ class CallModel {
     required this.pessoaId,
     required this.unidadeId,
     required this.descricaoInicial,
+    this.descricaoFormatada,
     this.status = 'PENDENTE',
     this.urgencia = 'MEDIA',
     this.prioridade = 'MIN',
@@ -49,6 +51,7 @@ class CallModel {
       unidadeId: json['UnidadeId'] ?? 0,
       diasproblema: json['ChamadoDiasComProblema'] ?? 0,
       descricaoInicial: json['ChamadoDescricaoInicial'] ?? '',
+      descricaoFormatada: json['ChamadoDescricaoFormatada'] ?? '',
       status: json['ChamadoStatus'] ?? 'PENDENTE',
       urgencia: json['ChamadoUrgencia'] ?? 'MEDIA', // ← campo correto no JSON
       prioridade: _parsePrioridade(

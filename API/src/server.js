@@ -44,6 +44,7 @@ const tipoSuporteRouter = require('./routes/tipoSuporteRouter');
 const chamadoRouter = require('./routes/chamadoRouter');
 const atividadeChamadoRouter = require('./routes/atividadeChamadoRouter');
 const solicitacaoRouter = require('./routes/solicitacaoRouter');
+const atividadeSolicitacaoRouter = require('./routes/atividadeSolicitacaoRouter');
 
 app.use('/api/admin', adminRouter);
 app.use('/api/unidade', unidadeRouter);
@@ -56,6 +57,7 @@ app.use('/api/tiposuporte', tipoSuporteRouter);
 app.use('/api/chamado', chamadoRouter);
 app.use('/api/atividadechamado', atividadeChamadoRouter);
 app.use('/api/solicitacao', solicitacaoRouter);
+app.use('/api/atividadesolicitacao', atividadeSolicitacaoRouter);
 
 // Health check
 app.get('/health', (req, res) => {

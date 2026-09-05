@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui'; // Adicionado para efeitos de blur
+import 'dart:ui';
 
 import 'package:CDCP/config.dart';
 import 'package:CDCP/screens/shared/components/bottom_nav_bar.dart';
@@ -9,11 +9,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
 import './create_request_screen.dart';
 
-// [Manter UpperCaseTextFormatter e CpfFormatter idênticos ao original]
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -66,8 +66,15 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isCidadao = true;
   bool _isLoading = false;
   bool _isObscure = true;
+  bool _salvarCredencial = false;
   late AnimationController _toggleController;
   late Animation<double> _scaleAnimation;
+
+  // Chaves para o SharedPreferences
+  static const String _keyCpf = 'cpf_salvo';
+  static const String _keyUsuario = 'usuario_salvo';
+  static const String _keyUltimoTipo = 'ultimo_tipo_usuario';
+  static const String _keySalvarCredencial = 'salvar_credencial';
 
   @override
   void initState() {
@@ -79,6 +86,7 @@ class _LoginScreenState extends State<LoginScreen>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _toggleController, curve: Curves.easeInOut),
     );
+    _carregarCredenciaisSalvas();
   }
 
   @override
@@ -90,7 +98,150 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // [Função _login mantida exatamente igual]
+  // =============================================
+  // CARREGAR CREDENCIAIS SALVAS
+  // =============================================
+  Future<void> _carregarCredenciaisSalvas() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final salvar = prefs.getBool(_keySalvarCredencial) ?? false;
+      final ultimoTipo = prefs.getString(_keyUltimoTipo) ?? 'cidadao';
+
+      setState(() {
+        _salvarCredencial = salvar;
+        _isCidadao = ultimoTipo == 'cidadao';
+      });
+
+      // ✅ Carregar apenas a credencial do tipo atual
+      if (salvar) {
+        if (_isCidadao) {
+          final cpfSalvo = prefs.getString(_keyCpf) ?? '';
+          if (cpfSalvo.isNotEmpty) {
+            _cpfController.text = cpfSalvo;
+          }
+        } else {
+          final usuarioSalvo = prefs.getString(_keyUsuario) ?? '';
+          if (usuarioSalvo.isNotEmpty) {
+            _usuarioController.text = usuarioSalvo;
+          }
+        }
+      }
+    } catch (e) {
+      print('Erro ao carregar credenciais: $e');
+    }
+  }
+
+  // =============================================
+  // SALVAR CREDENCIAIS (APENAS DO TIPO ATUAL)
+  // =============================================
+  Future<void> _salvarCredenciais() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setBool(_keySalvarCredencial, _salvarCredencial);
+      await prefs.setString(
+        _keyUltimoTipo,
+        _isCidadao ? 'cidadao' : 'tecnico',
+      );
+
+      if (_salvarCredencial) {
+        // ✅ Salvar apenas a credencial do tipo atual
+        if (_isCidadao) {
+          final cpf = _cpfController.text.replaceAll(RegExp(r'\D'), '');
+          if (cpf.isNotEmpty) {
+            await prefs.setString(_keyCpf, cpf);
+          }
+        } else {
+          final usuario = _usuarioController.text.trim().toUpperCase();
+          if (usuario.isNotEmpty) {
+            await prefs.setString(_keyUsuario, usuario);
+          }
+        }
+      }
+      // ✅ Se desmarcar, NÃO remove as credenciais (apenas não salva mais)
+    } catch (e) {
+      print('Erro ao salvar credenciais: $e');
+    }
+  }
+
+  // =============================================
+  // LIMPAR CREDENCIAL DO TIPO ATUAL
+  // =============================================
+  Future<void> _limparCredencialAtual() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // ✅ Remover apenas a credencial do tipo atual
+      if (_isCidadao) {
+        await prefs.remove(_keyCpf);
+      } else {
+        await prefs.remove(_keyUsuario);
+      }
+
+      setState(() {
+        _salvarCredencial = false;
+        if (_isCidadao) {
+          _cpfController.clear();
+        } else {
+          _usuarioController.clear();
+        }
+      });
+    } catch (e) {
+      print('Erro ao limpar credencial: $e');
+    }
+  }
+
+  // =============================================
+  // TROCAR MODO (Cidadão <-> Técnico)
+  // =============================================
+  void _toggleMode() {
+    _toggleController.forward(from: 0.0);
+    Future.delayed(const Duration(milliseconds: 150), () {
+      setState(() {
+        _isCidadao = !_isCidadao;
+        _senhaController.clear();
+        
+        // ✅ Carregar a credencial do outro tipo (preservando a atual)
+        _carregarCredencialDoTipoAtual();
+      });
+      _toggleController.reverse();
+    });
+  }
+
+  // =============================================
+  // CARREGAR CREDENCIAL DO TIPO ATUAL
+  // =============================================
+  Future<void> _carregarCredencialDoTipoAtual() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final salvar = prefs.getBool(_keySalvarCredencial) ?? false;
+      
+      if (salvar) {
+        if (_isCidadao) {
+          final cpfSalvo = prefs.getString(_keyCpf) ?? '';
+          if (cpfSalvo.isNotEmpty) {
+            _cpfController.text = cpfSalvo;
+          } else {
+            _cpfController.clear();
+          }
+        } else {
+          final usuarioSalvo = prefs.getString(_keyUsuario) ?? '';
+          if (usuarioSalvo.isNotEmpty) {
+            _usuarioController.text = usuarioSalvo;
+          } else {
+            _usuarioController.clear();
+          }
+        }
+      }
+    } catch (e) {
+      print('Erro ao carregar credencial do tipo atual: $e');
+    }
+  }
+
+  // =============================================
+  // LOGIN
+  // =============================================
   Future<void> _login() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
@@ -112,6 +263,7 @@ class _LoginScreenState extends State<LoginScreen>
         body = {'TecnicoUsuario': usuario, 'TecnicoSenha': senha};
         url = Uri.parse('${AppConfig.baseUrl}/api/tecnico/login');
       }
+
       final response = await http
           .post(
             url,
@@ -119,6 +271,7 @@ class _LoginScreenState extends State<LoginScreen>
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 15));
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         var user = UserProfile.fromJson(data);
@@ -132,7 +285,12 @@ class _LoginScreenState extends State<LoginScreen>
           unitName: user.unitName,
           unidadeId: user.unidadeId,
           token: user.token,
+          usuario: user.usuario,
         );
+
+        // ✅ Salvar credenciais após login bem-sucedido
+        await _salvarCredenciais();
+
         if (mounted) {
           final themeModel = Provider.of<ThemeModel>(context, listen: false);
           themeModel.setCurrentUser(user);
@@ -151,11 +309,10 @@ class _LoginScreenState extends State<LoginScreen>
             behavior: SnackBarBehavior.floating,
           ),
         );
-        //throw Exception(errorMsg);
       }
     } catch (e) {
       print(e);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao realizar login'),
@@ -163,6 +320,7 @@ class _LoginScreenState extends State<LoginScreen>
             behavior: SnackBarBehavior.floating,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -173,19 +331,6 @@ class _LoginScreenState extends State<LoginScreen>
       context,
       MaterialPageRoute(builder: (context) => const CreateSolicitacaoScreen()),
     );
-  }
-
-  void _toggleMode() {
-    _toggleController.forward(from: 0.0);
-    Future.delayed(const Duration(milliseconds: 150), () {
-      setState(() {
-        _isCidadao = !_isCidadao;
-        _cpfController.clear();
-        _usuarioController.clear();
-        _senhaController.clear();
-      });
-      _toggleController.reverse();
-    });
   }
 
   @override
@@ -206,7 +351,6 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         child: Stack(
           children: [
-            // Círculos Decorativos de Fundo (Estética Glassmorphism)
             Positioned(
               top: -100,
               right: -50,
@@ -225,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 20),
-                  // Logo ou Ícone Decorativo
+
                   Center(
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -242,7 +386,6 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   const SizedBox(height: 24),
 
-                  // Título com animação de troca
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
                     child: Text(
@@ -270,7 +413,6 @@ class _LoginScreenState extends State<LoginScreen>
 
                   const SizedBox(height: 48),
 
-                  // Campos de Input Refinados
                   _buildAnimatedInputSection(fontSize, cs),
 
                   const SizedBox(height: 20),
@@ -295,9 +437,12 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
 
+                  const SizedBox(height: 12),
+
+                  _buildSalvarCredencialCheckbox(fontSize, cs),
+
                   const SizedBox(height: 20),
 
-                  // Toggle Switch Moderno
                   Center(
                     child: Container(
                       padding: const EdgeInsets.all(4),
@@ -317,7 +462,6 @@ class _LoginScreenState extends State<LoginScreen>
 
                   const SizedBox(height: 20),
 
-                  // Botão de Login Premium
                   _buildSubmitButton(fontSize, cs),
 
                   const SizedBox(height: 20),
@@ -329,11 +473,113 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
 
-            // Loading Overlay Refinado
             if (_isLoading) _buildLoadingOverlay(fontSize, cs),
           ],
         ),
       ),
+    );
+  }
+
+  // =============================================
+  // CHECKBOX: Salvar Credencial
+  // =============================================
+  Widget _buildSalvarCredencialCheckbox(double fontSize, ColorScheme cs) {
+    // ✅ Verificar se há credencial salva para o tipo atual
+    final temCredencialSalva = _isCidadao 
+        ? _cpfController.text.isNotEmpty 
+        : _usuarioController.text.isNotEmpty;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Checkbox(
+                  value: _salvarCredencial,
+                  onChanged: (value) {
+                    setState(() {
+                      _salvarCredencial = value ?? false;
+                      // ✅ Se desmarcar, NÃO limpa os campos
+                    });
+                  },
+                  activeColor: cs.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Salvar meu usuário',
+                  style: GoogleFonts.inter(
+                    fontSize: 14 * fontSize,
+                    fontWeight: FontWeight.w500,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // ✅ Botão "Limpar" aparece apenas se houver credencial salva
+        if (temCredencialSalva)
+          TextButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(
+                    _isCidadao 
+                      ? 'Limpar CPF Salvo' 
+                      : 'Limpar Usuário Salvo',
+                  ),
+                  content: Text(
+                    _isCidadao 
+                      ? 'Deseja remover o CPF salvo?'
+                      : 'Deseja remover o usuário salvo?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _limparCredencialAtual();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _isCidadao 
+                                ? 'CPF removido com sucesso' 
+                                : 'Usuário removido com sucesso',
+                            ),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      child: const Text('Remover'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            child: Text(
+              'Limpar',
+              style: GoogleFonts.inter(
+                fontSize: 12 * fontSize,
+                fontWeight: FontWeight.w500,
+                color: Colors.red,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

@@ -188,10 +188,6 @@ function TecnicoModal({
       newErrors.TecnicoCPF = "CPF inválido"
     }
     
-    if (!formData.TecnicoUsuario.trim()) {
-      newErrors.TecnicoUsuario = "Usuário é obrigatório"
-    }
-    
     if (!tecnico && !formData.TecnicoSenha.trim()) {
       newErrors.TecnicoSenha = "Senha é obrigatória"
     } else if (formData.TecnicoSenha && formData.TecnicoSenha.length < 6) {
@@ -215,7 +211,6 @@ function TecnicoModal({
       UnidadeId: unidadeId,
       TecnicoNome: formData.TecnicoNome.trim(),
       TecnicoCPF: formData.TecnicoCPF.replace(/\D/g, ''),
-      TecnicoUsuario: formData.TecnicoUsuario.trim(),
       TecnicoStatus: formData.TecnicoStatus
     }
 
@@ -362,28 +357,8 @@ function TecnicoModal({
               )}
             </div>
 
-            {/* Usuário */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Usuário *
-              </label>
-              <input
-                type="text"
-                value={formData.TecnicoUsuario}
-                onChange={(e) => setFormData({ ...formData, TecnicoUsuario: e.target.value })}
-                className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${
-                  errors.TecnicoUsuario ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-                }`}
-                placeholder="Usuário para login"
-                disabled={isLoading}
-              />
-              {errors.TecnicoUsuario && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.TecnicoUsuario}</p>
-              )}
-            </div>
-
             {/* Senha */}
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {tecnico ? 'Nova Senha (opcional)' : 'Senha *'}
               </label>

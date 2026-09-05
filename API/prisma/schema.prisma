@@ -189,7 +189,7 @@ model AtividadeChamado {
   ChamadoId             String
   TecnicoId             String
   AtividadeDescricao    String
-  AtividadeUsuarioVer   UsuarioVer  @default(TODOS)
+  AtividadeUsuarioVer   UsuarioVer  @default(GESTEC)
   AtividadeDtRealizacao DateTime    @default(now())
 
   Chamado               Chamado  @relation(fields: [ChamadoId], references: [ChamadoId])
@@ -245,7 +245,7 @@ model Solicitacao {
   // Para gestores/pessoas cadastradas não é necessário informar
   SolicitacaoSolicitanteNome      String?             @db.VarChar(100)
   SolicitacaoSolicitanteEmail     String?             @db.VarChar(256)
-  SolicitacaoSolicitanteTelefone  String?             @db.VarChar(256)
+  SolicitacaoSolicitanteTelefone  String?             @db.VarChar(15)
   SolicitacaoUsuarioFinalizou     String?             @db.VarChar(20)
   SolicitacaoStatus               SolicitacaoStatus   @default(PENDENTE)
 

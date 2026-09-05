@@ -21,7 +21,11 @@ import {
   Phone,
   Calendar,
   Tag,
-  MessageSquare
+  MessageSquare,
+  Activity,
+  Trash2,
+  Edit,
+  Send
 } from "lucide-react"
 import { useGestorAuth } from "@/app/contexts/GestorAuthContext"
 import {
@@ -35,7 +39,15 @@ import {
   STATUS_SOLICITACAO_COLORS,
   type Solicitacao,
   type SolicitacaoFilters
-} from "@/lib/solicitacao-service";
+} from "@/lib/solicitacao-service"
+import {
+  adicionarAtividade,
+  listarAtividadesPorSolicitacao,
+  alterarAtividade,
+  excluirAtividade,
+  type AtividadeSolicitacao
+} from "@/lib/atividade-solicitacao-service"
+import { formatarDataBrasil } from '@/utils/dateUtils'
 
 // Componente de Modal de Confirmação
 function ConfirmModal({
@@ -115,22 +127,157 @@ function ConfirmModal({
   )
 }
 
-// Componente de Modal de Visualização
+// Modal para Adicionar/Editar Atividade
+function AtividadeModal({
+  isOpen,
+  onClose,
+  onSave,
+  solicitacaoId,
+  atividade,
+  isLoading
+}: {
+  isOpen: boolean
+  onClose: () => void
+  onSave: (descricao: string) => Promise<void>
+  solicitacaoId: string
+  atividade?: AtividadeSolicitacao | null
+  isLoading: boolean
+}) {
+  const [descricao, setDescricao] = useState("")
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (atividade) {
+      setDescricao(atividade.AtividadeSolicitacaoDescricao)
+    } else {
+      setDescricao("")
+    }
+    setError("")
+  }, [atividade, isOpen])
+
+  if (!isOpen) return null
+
+  const handleSubmit = async () => {
+    if (!descricao.trim()) {
+      setError("A descrição da atividade é obrigatória")
+      return
+    }
+    await onSave(descricao.trim())
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-lg w-full mx-4">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            {atividade ? 'Editar Atividade' : 'Nova Atividade'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+          >
+            <X size={20} className="text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Descrição *
+            </label>
+            <textarea
+              value={descricao}
+              onChange={(e) => {
+                setDescricao(e.target.value)
+                setError("")
+              }}
+              rows={4}
+              className={`w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-gray-100 ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+              placeholder="Descreva a atividade realizada..."
+              disabled={isLoading}
+            />
+            {error && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              disabled={isLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                atividade ? 'Atualizar' : 'Adicionar'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Componente de Modal de Visualização (com atividades)
 function ViewModal({
   isOpen,
   onClose,
-  solicitacao
+  solicitacao,
+  onAddAtividade,
+  onEditAtividade,
+  onDeleteAtividade
 }: {
   isOpen: boolean
   onClose: () => void
   solicitacao: Solicitacao | null
+  onAddAtividade: (solicitacaoId: string) => void
+  onEditAtividade: (atividade: AtividadeSolicitacao) => void
+  onDeleteAtividade: (atividadeId: string) => void
 }) {
+  const [atividades, setAtividades] = useState<AtividadeSolicitacao[]>([])
+  const [isLoadingAtividades, setIsLoadingAtividades] = useState(false)
+  const [showAllAtividades, setShowAllAtividades] = useState(false)
+
+  useEffect(() => {
+    if (isOpen && solicitacao) {
+      carregarAtividades()
+    }
+  }, [isOpen, solicitacao])
+
+  const carregarAtividades = async () => {
+    if (!solicitacao) return
+    try {
+      setIsLoadingAtividades(true)
+      const data = await listarAtividadesPorSolicitacao(solicitacao.SolicitacaoId, 50, 1)
+      setAtividades(data)
+    } catch (error) {
+      console.error('Erro ao carregar atividades:', error)
+    } finally {
+      setIsLoadingAtividades(false)
+    }
+  }
+
   if (!isOpen || !solicitacao) return null
 
   const getStatusBadge = (status: string) => {
     const styles = {
       PENDENTE: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      EMANDAMENTO: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      EMATENDIMENTO: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       CONCLUIDO: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       RECUSADO: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       CANCELADO: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
@@ -145,6 +292,12 @@ function ViewModal({
     }
     return tipos[tipo] || tipo
   }
+
+  const displayedAtividades = showAllAtividades ? atividades : atividades.slice(0, 5)
+
+  const podeAdicionarAtividade = solicitacao.SolicitacaoStatus !== 'CONCLUIDO' &&
+    solicitacao.SolicitacaoStatus !== 'RECUSADO' &&
+    solicitacao.SolicitacaoStatus !== 'CANCELADO'
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -162,10 +315,6 @@ function ViewModal({
         </div>
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <p className="text-sm text-gray-500 dark:text-gray-400">ID</p>
-              <p className="text-sm font-mono text-gray-900 dark:text-gray-100">{solicitacao.SolicitacaoId}</p>
-            </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Tipo</p>
               <p className="text-base font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -238,25 +387,84 @@ function ViewModal({
             )}
           </div>
 
-          {/* Atividades da Solicitação */}
-          {solicitacao.AtividadeSolicitacao && solicitacao.AtividadeSolicitacao.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                <MessageSquare size={16} />
-                Atividades
+          {/* ATIVIDADES */}
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Activity size={16} />
+                Atividades ({atividades.length})
               </h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {solicitacao.AtividadeSolicitacao.map((atividade) => (
-                  <div key={atividade.AtivSolId} className="text-sm p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                    <p className="text-gray-900 dark:text-gray-100">{atividade.AtivSolDescricao}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(atividade.AtivSolDt).toLocaleString('pt-BR')}
-                    </p>
+              {podeAdicionarAtividade && (
+                <button
+                  onClick={() => onAddAtividade(solicitacao.SolicitacaoId)}
+                  className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+                >
+                  <Plus size={16} />
+                  Nova Atividade
+                </button>
+              )}
+            </div>
+
+            {isLoadingAtividades ? (
+              <div className="flex justify-center py-4">
+                <RefreshCw size={24} className="animate-spin text-gray-400" />
+              </div>
+            ) : atividades.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                Nenhuma atividade registrada
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {displayedAtividades.map((atividade: AtividadeSolicitacao) => (
+                  <div
+                    key={atividade.AtividadeSolicitacaoId}
+                    className="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg group"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        {atividade.AtividadeSolicitacaoDescricao}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-1">
+                        <Clock size={12} />
+                        {formatarDataBrasil(atividade.AtividadeSolicitacaoDtRealizacao)}
+                        <span className="text-gray-300 dark:text-gray-600">•</span>
+                        <User size={12} />
+                        {atividade.AtividadeSolicitacaoUsuario}
+                      </p>
+                    </div>
+                    {podeAdicionarAtividade && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* ✅ Editar Atividade - usando a variável 'atividade' do map */}
+                        <button
+                          onClick={() => onEditAtividade(atividade)}
+                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                          title="Editar"
+                        >
+                          <Edit size={14} className="text-gray-500 dark:text-gray-400" />
+                        </button>
+                        {/* ✅ Excluir Atividade */}
+                        <button
+                          onClick={() => onDeleteAtividade(atividade.AtividadeSolicitacaoId)}
+                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                          title="Excluir"
+                        >
+                          <Trash2 size={14} className="text-red-500" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
+                {atividades.length > 5 && (
+                  <button
+                    onClick={() => setShowAllAtividades(!showAllAtividades)}
+                    className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    {showAllAtividades ? 'Ver menos' : `Ver mais ${atividades.length - 5} atividades`}
+                  </button>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <div className="flex justify-end p-6 border-t border-gray-200 dark:border-gray-800">
           <button
@@ -281,11 +489,11 @@ function StatusModal({
 }: {
   isOpen: boolean
   onClose: () => void
-  onSave: (status: 'PENDENTE' | 'EMANDAMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO') => Promise<void>
+  onSave: (status: 'PENDENTE' | 'EMATENDIMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO' | 'FALTAINFORMACAO') => Promise<void>
   solicitacao: Solicitacao | null
   isLoading: boolean
 }) {
-  const [selectedStatus, setSelectedStatus] = useState<'PENDENTE' | 'EMANDAMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO'>('PENDENTE')
+  const [selectedStatus, setSelectedStatus] = useState<'PENDENTE' | 'EMATENDIMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO' | 'FALTAINFORMACAO'>('PENDENTE')
   const [error, setError] = useState<string>("")
 
   useEffect(() => {
@@ -297,19 +505,13 @@ function StatusModal({
 
   if (!isOpen || !solicitacao) return null
 
-  // Opções de status baseado no status atual
   const getStatusOptions = (currentStatus: string) => {
-    const allStatus = ['PENDENTE', 'EMANDAMENTO', 'CONCLUIDO', 'RECUSADO', 'CANCELADO'] as const
-
-    // Se for PENDENTE, pode ir para EMANDAMENTO, RECUSADO ou CANCELADO
     if (currentStatus === 'PENDENTE') {
-      return ['PENDENTE', 'EMANDAMENTO', 'RECUSADO', 'CANCELADO'] as const
+      return ['PENDENTE', 'EMATENDIMENTO', 'RECUSADO', 'FALTAINFORMACAO'] as const
     }
-    // Se for EMANDAMENTO, pode ir para CONCLUIDO, RECUSADO ou CANCELADO
-    if (currentStatus === 'EMANDAMENTO') {
-      return ['EMANDAMENTO', 'CONCLUIDO', 'RECUSADO', 'CANCELADO'] as const
+    if (currentStatus === 'EMATENDIMENTO') {
+      return ['EMATENDIMENTO', 'CONCLUIDO', 'PENDENTE', 'RECUSADO', 'FALTAINFORMACAO'] as const
     }
-    // Se for CONCLUIDO, RECUSADO ou CANCELADO, não pode mais alterar
     return [currentStatus] as const
   }
 
@@ -319,10 +521,11 @@ function StatusModal({
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       'PENDENTE': 'Pendente',
-      'EMANDAMENTO': 'Em Andamento',
+      'EMATENDIMENTO': 'Em Andamento',
       'CONCLUIDO': 'Concluído',
       'RECUSADO': 'Recusado',
-      'CANCELADO': 'Cancelado'
+      'CANCELADO': 'Cancelado',
+      'FALTAINFORMACAO': 'Falta Informação'
     }
     return labels[status] || status
   }
@@ -330,7 +533,7 @@ function StatusModal({
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       'PENDENTE': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      'EMANDAMENTO': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      'EMATENDIMENTO': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       'CONCLUIDO': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       'RECUSADO': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       'CANCELADO': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
@@ -367,13 +570,6 @@ function StatusModal({
 
         <div className="p-6 space-y-4">
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Solicitação</p>
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {solicitacao.SolicitacaoId.substring(0, 8)}...
-            </p>
-          </div>
-
-          <div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Status Atual</p>
             <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(solicitacao.SolicitacaoStatus)}`}>
               {getStatusLabel(solicitacao.SolicitacaoStatus)}
@@ -387,7 +583,7 @@ function StatusModal({
             <select
               value={selectedStatus}
               onChange={(e) => {
-                setSelectedStatus(e.target.value as 'PENDENTE' | 'EMANDAMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO')
+                setSelectedStatus(e.target.value as 'PENDENTE' | 'EMATENDIMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO' | 'FALTAINFORMACAO' | 'CANCELADO')
                 setError("")
               }}
               disabled={!canChange || isLoading}
@@ -452,7 +648,8 @@ export default function SolicitacoesPage() {
   const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<SolicitacaoFilters>({
     pagina: 1,
-    limite: 10
+    limite: 10,
+    tipo: 'CADASTROPESSOAUNIDADE'
   })
   const [showFilters, setShowFilters] = useState(false)
   const [selectedSolicitacao, setSelectedSolicitacao] = useState<Solicitacao | null>(null)
@@ -461,12 +658,13 @@ export default function SolicitacoesPage() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
   const [viewModalOpen, setViewModalOpen] = useState(false)
   const [viewingSolicitacao, setViewingSolicitacao] = useState<Solicitacao | null>(null)
-  const [actionType, setActionType] = useState<'alterar' | 'confirmar' | null>(null)
+  const [atividadeModalOpen, setAtividadeModalOpen] = useState(false)
+  const [selectedAtividade, setSelectedAtividade] = useState<AtividadeSolicitacao | null>(null)
+  const [currentSolicitacaoId, setCurrentSolicitacaoId] = useState<string>("")
 
   const { user } = useGestorAuth()
 
-  // Opções de filtro
-  const statusOptions = ['TODOS', 'PENDENTE', 'EMANDAMENTO', 'CONCLUIDO', 'RECUSADO', 'CANCELADO']
+  const statusOptions = ['TODOS', 'PENDENTE', 'EMATENDIMENTO', 'CONCLUIDO', 'RECUSADO', 'CANCELADO']
   const tipoOptions = ['CADASTROPESSOAUNIDADE', 'DIVERSAS']
 
   const tipoDisplayNames: Record<string, string> = {
@@ -494,13 +692,78 @@ export default function SolicitacoesPage() {
   }
 
   const handleFilterChange = (key: keyof SolicitacaoFilters, value: any) => {
-    const newFilters = { ...filters, [key]: value === 'TODOS' ? undefined : value, pagina: 1 }
+    const newFilters = { ...filters, [key]: value, pagina: 1 }
+    if (key === 'tipo' && (!value || value === 'TODOS')) {
+      newFilters.tipo = 'CADASTROPESSOAUNIDADE'
+    }
     setFilters(newFilters)
   }
 
   const handlePageChange = (novaPagina: number) => {
     setFilters({ ...filters, pagina: novaPagina })
   }
+
+  // =============================================
+  // FUNÇÕES DE ATIVIDADES
+  // =============================================
+
+  const handleAddAtividade = (solicitacaoId: string) => {
+    setCurrentSolicitacaoId(solicitacaoId)
+    setSelectedAtividade(null)
+    setAtividadeModalOpen(true)
+  }
+
+  const handleEditAtividade = (atividade: AtividadeSolicitacao) => {
+    setCurrentSolicitacaoId(atividade.SolicitacaoId)
+    setSelectedAtividade(atividade)
+    setAtividadeModalOpen(true)
+  }
+
+  const handleSaveAtividade = async (descricao: string) => {
+    try {
+      setModalLoading(true)
+      if (selectedAtividade) {
+        await alterarAtividade(selectedAtividade.AtividadeSolicitacaoId, descricao)
+      } else {
+        await adicionarAtividade(currentSolicitacaoId, descricao)
+      }
+      setAtividadeModalOpen(false)
+      setSelectedAtividade(null)
+      // Recarregar a solicitação em visualização
+      if (viewingSolicitacao) {
+        const atualizada = await buscarSolicitacaoPorId(viewingSolicitacao.SolicitacaoId)
+        setViewingSolicitacao(atualizada)
+      }
+    } catch (err: any) {
+      console.error('Erro ao salvar atividade:', err)
+      alert(err.message || 'Erro ao salvar atividade')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const handleDeleteAtividade = async (atividadeId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta atividade?')) return
+
+    try {
+      setModalLoading(true)
+      await excluirAtividade(atividadeId)
+      // Recarregar a solicitação em visualização
+      if (viewingSolicitacao) {
+        const atualizada = await buscarSolicitacaoPorId(viewingSolicitacao.SolicitacaoId)
+        setViewingSolicitacao(atualizada)
+      }
+    } catch (err: any) {
+      console.error('Erro ao excluir atividade:', err)
+      alert(err.message || 'Erro ao excluir atividade')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  // =============================================
+  // FUNÇÕES DE SOLICITAÇÃO
+  // =============================================
 
   const handleViewSolicitacao = async (solicitacao: Solicitacao) => {
     try {
@@ -521,7 +784,7 @@ export default function SolicitacoesPage() {
     setStatusModalOpen(true)
   }
 
-  const handleSaveStatus = async (status: 'PENDENTE' | 'EMANDAMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO') => {
+  const handleSaveStatus = async (status: 'PENDENTE' | 'EMATENDIMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO' | 'FALTAINFORMACAO') => {
     if (!selectedSolicitacao) return
 
     try {
@@ -531,16 +794,18 @@ export default function SolicitacoesPage() {
       await carregarSolicitacoes()
     } catch (err: any) {
       console.error('Erro ao alterar status:', err)
-      alert(err.response?.data?.error || 'Erro ao alterar status da solicitação')
+      alert(err.message || 'Erro ao alterar status da solicitação')
     } finally {
       setModalLoading(false)
     }
   }
 
+  // ... funções getStatusBadge, getStatusLabel, getTipoDisplay, podeAlterarStatus (mantidas iguais)
+
   const getStatusBadge = (status: string) => {
     const styles = {
       PENDENTE: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      EMANDAMENTO: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      EMATENDIMENTO: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       CONCLUIDO: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       RECUSADO: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       CANCELADO: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
@@ -551,7 +816,7 @@ export default function SolicitacoesPage() {
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       'PENDENTE': 'Pendente',
-      'EMANDAMENTO': 'Em Andamento',
+      'EMATENDIMENTO': 'Em Atendimento',
       'CONCLUIDO': 'Concluído',
       'RECUSADO': 'Recusado',
       'CANCELADO': 'Cancelado'
@@ -564,7 +829,7 @@ export default function SolicitacoesPage() {
   }
 
   const podeAlterarStatus = (status: string) => {
-    return status === 'PENDENTE' || status === 'EMANDAMENTO'
+    return status === 'PENDENTE' || status === 'EMATENDIMENTO'
   }
 
   return (
@@ -587,11 +852,10 @@ export default function SolicitacoesPage() {
         </div>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros (mantido igual) */}
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
         <div className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Botão de filtros */}
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -599,8 +863,6 @@ export default function SolicitacoesPage() {
               <Filter size={18} />
               <span>Filtros</span>
             </button>
-
-            {/* Atualizar */}
             <button
               onClick={carregarSolicitacoes}
               className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -610,23 +872,19 @@ export default function SolicitacoesPage() {
             </button>
           </div>
 
-          {/* Opções de filtro */}
           {showFilters && (
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Filtro por Status */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Status
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                   <div className="flex flex-wrap gap-2">
                     {statusOptions.map((status) => (
                       <button
                         key={status}
                         onClick={() => handleFilterChange('status', status)}
                         className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filters.status === status || (status === 'TODOS' && !filters.status)
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                           }`}
                       >
                         {status === 'TODOS' ? 'Todos' : getStatusLabel(status)}
@@ -634,29 +892,16 @@ export default function SolicitacoesPage() {
                     ))}
                   </div>
                 </div>
-
-                {/* Filtro por Tipo */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Tipo
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo</label>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleFilterChange('tipo', 'TODOS')}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${!filters.tipo
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                    >
-                      Todos
-                    </button>
                     {tipoOptions.map((tipo) => (
                       <button
                         key={tipo}
                         onClick={() => handleFilterChange('tipo', tipo)}
                         className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filters.tipo === tipo
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                           }`}
                       >
                         {getTipoDisplay(tipo)}
@@ -693,32 +938,16 @@ export default function SolicitacoesPage() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Solicitante
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Unidade
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Ações
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Solicitante</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unidade</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {solicitacoes.map((solicitacao) => (
                   <tr key={solicitacao.SolicitacaoId} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td className="px-6 py-4 text-sm font-mono text-gray-900 dark:text-gray-100">
-                      {solicitacao.SolicitacaoId.substring(0, 8)}...
-                    </td>
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
                       <span className="flex items-center gap-2">
                         <Tag size={14} className="text-gray-400" />
@@ -763,7 +992,6 @@ export default function SolicitacoesPage() {
           </div>
         )}
 
-        {/* Paginação */}
         {!isLoading && solicitacoes.length > 0 && (
           <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between flex-wrap gap-3">
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -777,9 +1005,7 @@ export default function SolicitacoesPage() {
               >
                 <ChevronLeft size={18} />
               </button>
-              <span className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">
-                {paginacao.paginaAtual}
-              </span>
+              <span className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">{paginacao.paginaAtual}</span>
               <button
                 onClick={() => handlePageChange(paginacao.paginaAtual + 1)}
                 disabled={paginacao.paginaAtual === paginacao.totalPaginas}
@@ -795,8 +1021,14 @@ export default function SolicitacoesPage() {
       {/* Modals */}
       <ViewModal
         isOpen={viewModalOpen}
-        onClose={() => setViewModalOpen(false)}
+        onClose={() => {
+          setViewModalOpen(false)
+          setViewingSolicitacao(null)
+        }}
         solicitacao={viewingSolicitacao}
+        onAddAtividade={handleAddAtividade}
+        onEditAtividade={handleEditAtividade}
+        onDeleteAtividade={handleDeleteAtividade}
       />
 
       <StatusModal
@@ -807,6 +1039,19 @@ export default function SolicitacoesPage() {
         }}
         onSave={handleSaveStatus}
         solicitacao={selectedSolicitacao}
+        isLoading={modalLoading}
+      />
+
+      <AtividadeModal
+        isOpen={atividadeModalOpen}
+        onClose={() => {
+          setAtividadeModalOpen(false)
+          setSelectedAtividade(null)
+          setCurrentSolicitacaoId("")
+        }}
+        onSave={handleSaveAtividade}
+        solicitacaoId={currentSolicitacaoId}
+        atividade={selectedAtividade}
         isLoading={modalLoading}
       />
     </div>

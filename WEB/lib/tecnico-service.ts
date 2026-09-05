@@ -96,7 +96,6 @@ export async function cadastrarTecnico(data: {
   TecnicoEmail?: string;
   TecnicoTelefone?: string;
   TecnicoCPF: string;
-  TecnicoUsuario: string;
   TecnicoSenha: string;
   TecnicoStatus?: 'ATIVO' | 'INATIVO' | 'BLOQUEADO';
 }) {

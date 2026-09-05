@@ -19,7 +19,32 @@ class TCallsScreen extends StatefulWidget {
 class _TCallsScreenState extends State<TCallsScreen> {
   bool isLoading = true;
   List<dynamic> chamados = [];
+  List<dynamic> filteredChamados = [];
   Timer? _refreshTimer;
+
+  // Filtros
+  String _searchQuery = "";
+  String _selectedStatus = "TODOS";
+  String? _selectedEquipeId;
+  List<dynamic> equipes = [];
+  bool _isLoadingEquipes = false;
+
+  // Controle de expansão por equipe
+  Map<String, bool> _expandedEquipes = {};
+
+  final List<String> _statusOptions = [
+    "TODOS",
+    "ATRIBUIDO",
+    "EMATENDIMENTO",
+    "CONCLUIDO",
+  ];
+
+  final Map<String, String> _statusDisplayNames = {
+    "TODOS": "TODOS",
+    "ATRIBUIDO": "ATRIBUÍDO",
+    "EMATENDIMENTO": "EM ATENDIMENTO",
+    "CONCLUIDO": "CONCLUÍDO",
+  };
 
   @override
   void initState() {
@@ -27,6 +52,7 @@ class _TCallsScreenState extends State<TCallsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint("🏁 Interface pronta. Iniciando processos...");
       _fetchChamadosTecnico();
+      _carregarEquipes();
       _startAutoRefresh();
     });
   }
@@ -41,6 +67,38 @@ class _TCallsScreenState extends State<TCallsScreen> {
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _fetchChamadosTecnico(isAutoRefresh: true);
     });
+  }
+
+  Future<void> _carregarEquipes() async {
+    try {
+      setState(() => _isLoadingEquipes = true);
+      final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+
+      final response = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/api/equipe'),
+        headers: {
+          'Authorization': 'Bearer ${user?.token}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> data = decoded['data'] ?? [];
+
+        setState(() {
+          equipes = data;
+          // Inicializar expansão para todas as equipes como false
+          for (var equipe in data) {
+            _expandedEquipes[equipe['EquipeId']] = false;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('💥 Erro ao carregar equipes: $e');
+    } finally {
+      setState(() => _isLoadingEquipes = false);
+    }
   }
 
   Future<void> _fetchChamadosTecnico({bool isAutoRefresh = false}) async {
@@ -68,11 +126,24 @@ class _TCallsScreenState extends State<TCallsScreen> {
             : (decoded['data'] ?? []);
 
         if (mounted) {
+          // ✅ Buscar a equipe do técnico logado
+          final equipeDoTecnico = await _getEquipeDoTecnico(user?.id);
+
           setState(() {
             chamados = todos.where((c) {
               final status = c['ChamadoStatus']?.toString().toUpperCase();
-              return status == 'ATRIBUIDO' || status == 'EMATENDIMENTO';
+              final equipeId = c['EquipeId']?.toString();
+
+              // ✅ Filtrar apenas chamados da equipe do técnico
+              final isDaEquipe =
+                  equipeDoTecnico == null || equipeId == equipeDoTecnico;
+
+              return (status == 'ATRIBUIDO' ||
+                      status == 'EMATENDIMENTO' ||
+                      status == 'CONCLUIDO') &&
+                  isDaEquipe;
             }).toList();
+            _applyFilters();
             isLoading = false;
           });
         }
@@ -83,8 +154,78 @@ class _TCallsScreenState extends State<TCallsScreen> {
     }
   }
 
-  // NOVA FUNÇÃO PARA CONCLUIR CHAMADO
-  Future<void> _patchStatusConcluido(int id) async {
+  Future<String?> _getEquipeDoTecnico(String? tecnicoId) async {
+    if (tecnicoId == null) return null;
+    try {
+      final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+      final response = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/api/tecnico/$tecnicoId/equipe'),
+        headers: {
+          'Authorization': 'Bearer ${user?.token}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return decoded['data']?['EquipeId']?.toString();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('💥 Erro ao buscar equipe do técnico: $e');
+      return null;
+    }
+  }
+
+  void _applyFilters() {
+    setState(() {
+      filteredChamados = chamados.where((chamado) {
+        // Filtro por Status
+        final status = chamado['ChamadoStatus']?.toString().toUpperCase() ?? '';
+        final matchesStatus =
+            _selectedStatus == "TODOS" || status == _selectedStatus;
+
+        // Filtro por busca (ID N1-N2, Título, Descrição)
+        final n1 = chamado['ChamadoN1']?.toString() ?? '';
+        final n2 = chamado['ChamadoN2']?.toString() ?? '';
+        final idCompleto = "$n1-$n2";
+        final titulo = chamado['ChamadoTitulo']?.toString().toLowerCase() ?? '';
+        final descricao =
+            (chamado['ChamadoDescricaoFormatada'] ??
+                    chamado['ChamadoDescricaoInicial'] ??
+                    '')
+                .toString()
+                .toLowerCase();
+        final query = _searchQuery.toLowerCase().trim();
+
+        final matchesSearch =
+            query.isEmpty ||
+            idCompleto.contains(query) ||
+            titulo.contains(query) ||
+            descricao.contains(query);
+
+        // ✅ Remover o filtro de equipe daqui - apenas agrupar depois
+        return matchesStatus && matchesSearch;
+      }).toList();
+    });
+  }
+
+  // Função para obter chamados por equipe
+  List<dynamic> _getChamadosPorEquipe(String equipeId) {
+    return filteredChamados.where((c) {
+      final id = c['EquipeId']?.toString();
+      return id == equipeId;
+    }).toList();
+  }
+
+  // Função para obter chamados sem equipe
+  List<dynamic> _getChamadosSemEquipe() {
+    return filteredChamados.where((c) {
+      return c['EquipeId'] == null || c['EquipeId']?.toString().isEmpty == true;
+    }).toList();
+  }
+
+  Future<void> _patchStatusConcluido(String id) async {
     try {
       final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
       final url = Uri.parse('${AppConfig.baseUrl}/api/chamado/$id/status');
@@ -109,7 +250,7 @@ class _TCallsScreenState extends State<TCallsScreen> {
     }
   }
 
-  void _confirmarConclusao(int id) {
+  void _confirmarConclusao(String id) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -159,29 +300,326 @@ class _TCallsScreenState extends State<TCallsScreen> {
         onRefresh: () => _fetchChamadosTecnico(),
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
-            : chamados.isEmpty
-            ? _buildEmptyState(cs)
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: chamados.length + 1, // +1 para o espaço extra
-                itemBuilder: (context, index) {
-                  // Se for o último item, retorna um SizedBox com espaço
-                  if (index == chamados.length) {
-                    return const SizedBox(height: 80); // Espaço extra no final
-                  }
-                  return _buildTicketCard(chamados[index], cs);
-                },
+            : Column(
+                children: [
+                  // Barra de Filtros
+                  _buildFilterBar(cs),
+                  // Lista de Chamados por Equipe
+                  Expanded(
+                    child: filteredChamados.isEmpty
+                        ? _buildEmptyState(cs)
+                        : _buildChamadosPorEquipeList(cs),
+                  ),
+                ],
               ),
       ),
+    );
+  }
+
+  Widget _buildFilterBar(ColorScheme cs) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: cs.surfaceVariant.withOpacity(0.1),
+      child: Column(
+        children: [
+          // Busca
+          TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+                _applyFilters();
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Buscar por ID (N1-N2), título ou descrição...',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: cs.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Filtros de Status
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: _statusOptions.map((status) {
+                final isSelected = _selectedStatus == status;
+                final displayName = _statusDisplayNames[status] ?? status;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isSelected ? Colors.white : cs.onSurface,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: cs.primary,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedStatus = status;
+                        _applyFilters();
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          // Filtro de Equipe (Dropdown)
+          if (equipes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: _selectedEquipeId,
+                  hint: const Text('Todas as equipes'),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Todas as equipes'),
+                    ),
+                    ...equipes.map((equipe) {
+                      return DropdownMenuItem<String>(
+                        value: equipe['EquipeId']?.toString(),
+                        child: Text(equipe['EquipeNome'] ?? 'Equipe'),
+                      );
+                    }).toList(),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedEquipeId = value;
+                      _applyFilters();
+                    });
+                  },
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChamadosPorEquipeList(ColorScheme cs) {
+    final List<Widget> widgets = [];
+
+    // Agrupar chamados por equipe
+    if (equipes.isNotEmpty) {
+      for (var equipe in equipes) {
+        String equipeId = equipe['EquipeId'];
+        final chamadosDaEquipe = _getChamadosPorEquipe(equipeId);
+
+        if (chamadosDaEquipe.isNotEmpty) {
+          widgets.add(_buildEquipeSection(equipe, chamadosDaEquipe, cs));
+        }
+      }
+    }
+
+    // Chamados sem equipe
+    final chamadosSemEquipe = _getChamadosSemEquipe();
+    if (chamadosSemEquipe.isNotEmpty) {
+      widgets.add(
+        _buildEquipeSection(
+          {'EquipeId': 'SEM_EQUIPE', 'EquipeNome': 'Sem Equipe'},
+          chamadosSemEquipe,
+          cs,
+        ),
+      );
+    }
+
+    if (widgets.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 60,
+              color: cs.primary.withOpacity(0.3),
+            ),
+            const SizedBox(height: 16),
+            const Text("Nenhum chamado encontrado com os filtros atuais."),
+          ],
+        ),
+      );
+    }
+
+    // Espaçamento para não sobrepor a barra de navegação 
+    widgets.add(const SizedBox(height: 90));
+
+    return ListView(padding: const EdgeInsets.all(16), children: widgets);
+  }
+
+  Widget _buildEquipeSection(
+    Map<String, dynamic> equipe,
+    List<dynamic> chamadosEquipe,
+    ColorScheme cs,
+  ) {
+    final equipeId = equipe['EquipeId']?.toString() ?? 'SEM_EQUIPE';
+    final nomeEquipe = equipe['EquipeNome'] ?? 'Sem Equipe';
+    final isExpanded = _expandedEquipes[equipeId] ?? false;
+
+    // Contar chamados por status
+    final atribuidos = chamadosEquipe
+        .where(
+          (c) => c['ChamadoStatus']?.toString().toUpperCase() == 'ATRIBUIDO',
+        )
+        .length;
+    final emAtendimento = chamadosEquipe
+        .where(
+          (c) =>
+              c['ChamadoStatus']?.toString().toUpperCase() == 'EMATENDIMENTO',
+        )
+        .length;
+    final concluidos = chamadosEquipe
+        .where(
+          (c) => c['ChamadoStatus']?.toString().toUpperCase() == 'CONCLUIDO',
+        )
+        .length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Cabeçalho da Equipe (Expansível)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _expandedEquipes[equipeId] = !isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: cs.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          nomeEquipe,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            _buildStatusCounter(
+                              'ATRIBUIDO',
+                              atribuidos,
+                              Colors.orange,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildStatusCounter(
+                              'EMATENDIMENTO',
+                              emAtendimento,
+                              Colors.blue,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildStatusCounter(
+                              'CONCLUIDO',
+                              concluidos,
+                              Colors.green,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${chamadosEquipe.length}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: cs.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Lista de Chamados (Expandida)
+          if (isExpanded)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: chamadosEquipe.map((chamado) {
+                  return _buildTicketCard(chamado, cs);
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCounter(String status, int count, Color color) {
+    if (count == 0) return const SizedBox.shrink();
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$count',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildTicketCard(Map<String, dynamic> chamado, ColorScheme cs) {
     final status =
         chamado['ChamadoStatus']?.toString().toUpperCase() ?? 'PENDENTE';
-    final id = chamado['ChamadoId'];
-    final n1 = chamado['ChamadoN1'];
-    final n2 = chamado['ChamadoN2'];
+    final id = chamado['ChamadoId']?.toString() ?? '';
+    final n1 = chamado['ChamadoN1']?.toString() ?? '0';
+    final n2 = chamado['ChamadoN2']?.toString() ?? '0';
     final titulo = chamado['ChamadoTitulo'] ?? "Chamado #$n1-$n2";
     final descricao =
         chamado['ChamadoDescricaoFormatada'] ??
@@ -189,15 +627,15 @@ class _TCallsScreenState extends State<TCallsScreen> {
         "Sem descrição disponível";
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: cs.outline.withOpacity(0.1)),
       ),
       color: cs.surfaceVariant.withOpacity(0.2),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -214,141 +652,134 @@ class _TCallsScreenState extends State<TCallsScreen> {
                 _buildStatusBadge(status, cs),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               titulo,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               descricao,
-              maxLines: 3,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
             ),
-            const Divider(height: 32),
-
-            // LÓGICA DE BOTÕES POR STATUS
-            if (status == 'EMATENDIMENTO')
-              Column(
-                children: [
-                  // 1. Botão Adicionar Atividade (+)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final res = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => NewCallDescriptionScreen(
-                              chamadoId: id,
-                              chamadoN1: n1,
-                              chamadoN2: n2,
-                            ),
-                          ),
-                        );
-                        if (res == true) _fetchChamadosTecnico();
-                      },
-                      icon: const Icon(Icons.add, size: 20),
-                      label: const Text(
-                        "ADICIONAR ATIVIDADE",
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade600,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+            const Divider(height: 24),
+            // Botões por status
+            if (status == 'EMATENDIMENTO') ...[
+              _buildActionButton(
+                onPressed: () async {
+                  final res = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NewCallDescriptionScreen(
+                        chamadoId: id,
+                        chamadoN1: int.tryParse(n1) ?? 0,
+                        chamadoN2: int.tryParse(n2) ?? 0,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 2. Botão Ver Atividades Anteriores
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CallActivitiesScreen(
-                              chamadoId: id,
-                              chamadoN1: n1,
-                              chamadoN2: n2,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.history, size: 18),
-                      label: const Text(
-                        "ATIVIDADES ANTERIORES",
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                  );
+                  if (res == true) _fetchChamadosTecnico();
+                },
+                label: "ADICIONAR ATIVIDADE",
+                icon: Icons.add,
+                color: Colors.blue.shade600,
+              ),
+              const SizedBox(height: 8),
+              _buildActionButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CallActivitiesScreen(
+                        chamadoId: id,
+                        chamadoN1: int.tryParse(n1) ?? 0,
+                        chamadoN2: int.tryParse(n2) ?? 0,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // 3. Botão Concluir
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _confirmarConclusao(id),
-                      icon: const Icon(Icons.check_circle_outline, size: 20),
-                      label: const Text(
-                        "CONCLUIR CHAMADO",
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                  );
+                },
+                label: "ATIVIDADES ANTERIORES",
+                icon: Icons.history,
+                color: cs.primary,
+                outlined: true,
+              ),
+              const SizedBox(height: 8),
+              _buildActionButton(
+                onPressed: () => _confirmarConclusao(id),
+                label: "CONCLUIR CHAMADO",
+                icon: Icons.check_circle_outline,
+                color: Colors.green.shade700,
+              ),
+            ] else if (status == 'ATRIBUIDO')
+              _buildActionButton(
+                onPressed: () async {
+                  final res = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NewCallDescriptionScreen(
+                        chamadoId: id,
+                        chamadoN1: int.tryParse(n1) ?? 0,
+                        chamadoN2: int.tryParse(n2) ?? 0,
                       ),
                     ),
-                  ),
-                ],
-              )
-            else if (status == 'ATRIBUIDO')
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final res = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => NewCallDescriptionScreen(
-                          chamadoId: id,
-                          chamadoN1: n1,
-                          chamadoN2: n2,
-                        ),
-                      ),
-                    );
-                    if (res == true) _fetchChamadosTecnico();
-                  },
-                  icon: const Icon(Icons.edit_note),
-                  label: const Text("ATUALIZAR CHAMADO"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: cs.primary,
-                    foregroundColor: cs.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
+                  );
+                  if (res == true) _fetchChamadosTecnico();
+                },
+                label: "INICIAR ATENDIMENTO",
+                icon: Icons.play_arrow,
+                color: cs.primary,
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback onPressed,
+    required String label,
+    required IconData icon,
+    required Color color,
+    bool outlined = false,
+  }) {
+    if (outlined) {
+      return SizedBox(
+        width: double.infinity,
+        height: 40,
+        child: OutlinedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 18),
+          label: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: color,
+            side: BorderSide(color: color),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
     );
@@ -367,7 +798,7 @@ class _TCallsScreenState extends State<TCallsScreen> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status,
+        _statusDisplayNames[status] ?? status,
         style: TextStyle(
           color: color,
           fontSize: 10,
@@ -388,7 +819,7 @@ class _TCallsScreenState extends State<TCallsScreen> {
             color: cs.primary.withOpacity(0.3),
           ),
           const SizedBox(height: 16),
-          const Text("Nenhum chamado pendente para sua equipe."),
+          const Text("Nenhum chamado encontrado com os filtros atuais."),
         ],
       ),
     );

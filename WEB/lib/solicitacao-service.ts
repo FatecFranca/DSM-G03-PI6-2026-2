@@ -10,7 +10,7 @@ export interface Solicitacao {
   SolicitacaoSolicitanteEmail: string | null;
   SolicitacaoSolicitanteTelefone: string | null;
   SolicitacaoUsuarioFinalizou: string | null;
-  SolicitacaoStatus: 'PENDENTE' | 'EMANDAMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO';
+  SolicitacaoStatus: 'PENDENTE' | 'EMATENDIMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO';
   SolicitacaoDtCadastro: string;
   Unidade?: {
     UnidadeId: number;
@@ -55,18 +55,31 @@ export interface ListaSolicitacoesResponse {
 export async function listarSolicitacoes(filters: SolicitacaoFilters = {}): Promise<ListaSolicitacoesResponse> {
   try {
     const params = new URLSearchParams();
-    
+
     if (filters.status) params.append('status', filters.status);
     if (filters.tipo) params.append('tipo', filters.tipo);
     if (filters.unidadeId) params.append('unidadeId', filters.unidadeId.toString());
     if (filters.pagina) params.append('pagina', filters.pagina.toString());
     if (filters.limite) params.append('limite', filters.limite.toString());
-    
+
     const response = await apiClient.get(`/solicitacao?${params.toString()}`);
     return response.data;
-  } catch (error) {
-    console.error('Erro ao listar solicitações:', error);
-    throw error;
+  } catch (error: any) {
+    // Extrair a mensagem de erro da resposta
+    if (error.response) {
+      // O servidor respondeu com um status de erro
+      const errorMessage = error.response.data?.error || error.message || 'Erro ao buscar solicitação';
+      console.error('Erro ao buscar solicitação:', errorMessage);
+      throw new Error(errorMessage);
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta
+      console.error('Sem resposta do servidor:', error.request);
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      // Algo aconteceu na configuração da requisição
+      console.error('Erro na configuração:', error.message);
+      throw new Error('Erro ao configurar a requisição');
+    }
   }
 }
 
@@ -78,9 +91,22 @@ export async function buscarSolicitacaoPorId(id: string): Promise<Solicitacao> {
   try {
     const response = await apiClient.get(`/solicitacao/${id}`);
     return response.data.data;
-  } catch (error) {
-    console.error('Erro ao buscar solicitação:', error);
-    throw error;
+  } catch (error: any) {
+    // Extrair a mensagem de erro da resposta
+    if (error.response) {
+      // O servidor respondeu com um status de erro
+      const errorMessage = error.response.data?.error || error.message || 'Erro ao buscar solicitação';
+      console.error('Erro ao buscar solicitação:', errorMessage);
+      throw new Error(errorMessage);
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta
+      console.error('Sem resposta do servidor:', error.request);
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      // Algo aconteceu na configuração da requisição
+      console.error('Erro na configuração:', error.message);
+      throw new Error('Erro ao configurar a requisição');
+    }
   }
 }
 
@@ -92,9 +118,22 @@ export async function listarSolicitacoesPorUsuario(): Promise<Solicitacao[]> {
   try {
     const response = await apiClient.get('/solicitacao/usuario/listar');
     return response.data.data;
-  } catch (error) {
-    console.error('Erro ao listar solicitações do usuário:', error);
-    throw error;
+  } catch (error: any) {
+    // Extrair a mensagem de erro da resposta
+    if (error.response) {
+      // O servidor respondeu com um status de erro
+      const errorMessage = error.response.data?.error || error.message || 'Erro ao buscar solicitação';
+      console.error('Erro ao buscar solicitação:', errorMessage);
+      throw new Error(errorMessage);
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta
+      console.error('Sem resposta do servidor:', error.request);
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      // Algo aconteceu na configuração da requisição
+      console.error('Erro na configuração:', error.message);
+      throw new Error('Erro ao configurar a requisição');
+    }
   }
 }
 
@@ -112,9 +151,22 @@ export async function abrirSolicitacao(data: {
   try {
     const response = await apiClient.post('/solicitacao', data);
     return response.data;
-  } catch (error) {
-    console.error('Erro ao abrir solicitação:', error);
-    throw error;
+  } catch (error: any) {
+    // Extrair a mensagem de erro da resposta
+    if (error.response) {
+      // O servidor respondeu com um status de erro
+      const errorMessage = error.response.data?.error || error.message || 'Erro ao buscar solicitação';
+      console.error('Erro ao buscar solicitação:', errorMessage);
+      throw new Error(errorMessage);
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta
+      console.error('Sem resposta do servidor:', error.request);
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      // Algo aconteceu na configuração da requisição
+      console.error('Erro na configuração:', error.message);
+      throw new Error('Erro ao configurar a requisição');
+    }
   }
 }
 
@@ -125,16 +177,29 @@ export async function abrirSolicitacao(data: {
  */
 export async function alterarStatusSolicitacao(
   id: string,
-  status: 'PENDENTE' | 'EMANDAMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO'
+  status: 'PENDENTE' | 'EMATENDIMENTO' | 'CONCLUIDO' | 'RECUSADO' | 'CANCELADO' | 'FALTAINFORMACAO'
 ) {
   try {
-    const response = await apiClient.patch(`/solicitacao/${id}/status`, { 
-      SolicitacaoStatus: status 
+    const response = await apiClient.patch(`/solicitacao/${id}/status`, {
+      SolicitacaoStatus: status
     });
     return response.data;
-  } catch (error) {
-    console.error('Erro ao alterar status da solicitação:', error);
-    throw error;
+  } catch (error: any) {
+    // Extrair a mensagem de erro da resposta
+    if (error.response) {
+      // O servidor respondeu com um status de erro
+      const errorMessage = error.response.data?.error || error.message || 'Erro ao buscar solicitação';
+      console.error('Erro ao buscar solicitação:', errorMessage);
+      throw new Error(errorMessage);
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta
+      console.error('Sem resposta do servidor:', error.request);
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      // Algo aconteceu na configuração da requisição
+      console.error('Erro na configuração:', error.message);
+      throw new Error('Erro ao configurar a requisição');
+    }
   }
 }
 
@@ -156,22 +221,22 @@ export async function alterarSolicitacao(
   try {
     const response = await apiClient.put(`/solicitacao/${id}`, data);
     return response.data;
-  } catch (error) {
-    console.error('Erro ao alterar solicitação:', error);
-    throw error;
-  }
-}
-
-/**
- * Exclui uma solicitação (apenas gestores e administradores)
- */
-export async function excluirSolicitacao(id: string) {
-  try {
-    const response = await apiClient.delete(`/solicitacao/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Erro ao excluir solicitação:', error);
-    throw error;
+  } catch (error: any) {
+    // Extrair a mensagem de erro da resposta
+    if (error.response) {
+      // O servidor respondeu com um status de erro
+      const errorMessage = error.response.data?.error || error.message || 'Erro ao buscar solicitação';
+      console.error('Erro ao buscar solicitação:', errorMessage);
+      throw new Error(errorMessage);
+    } else if (error.request) {
+      // A requisição foi feita mas não houve resposta
+      console.error('Sem resposta do servidor:', error.request);
+      throw new Error('Servidor não respondeu. Verifique sua conexão.');
+    } else {
+      // Algo aconteceu na configuração da requisição
+      console.error('Erro na configuração:', error.message);
+      throw new Error('Erro ao configurar a requisição');
+    }
   }
 }
 
@@ -196,7 +261,7 @@ export const TIPOS_SOLICITACAO_DISPLAY: Record<string, string> = {
 
 export const STATUS_SOLICITACAO = {
   PENDENTE: 'PENDENTE',
-  EMANDAMENTO: 'EMANDAMENTO',
+  EMATENDIMENTO: 'EMATENDIMENTO',
   CONCLUIDO: 'CONCLUIDO',
   RECUSADO: 'RECUSADO',
   CANCELADO: 'CANCELADO'
@@ -204,7 +269,7 @@ export const STATUS_SOLICITACAO = {
 
 export const STATUS_SOLICITACAO_LIST = [
   STATUS_SOLICITACAO.PENDENTE,
-  STATUS_SOLICITACAO.EMANDAMENTO,
+  STATUS_SOLICITACAO.EMATENDIMENTO,
   STATUS_SOLICITACAO.CONCLUIDO,
   STATUS_SOLICITACAO.RECUSADO,
   STATUS_SOLICITACAO.CANCELADO
@@ -212,7 +277,7 @@ export const STATUS_SOLICITACAO_LIST = [
 
 export const STATUS_SOLICITACAO_DISPLAY: Record<string, string> = {
   [STATUS_SOLICITACAO.PENDENTE]: 'Pendente',
-  [STATUS_SOLICITACAO.EMANDAMENTO]: 'Em Andamento',
+  [STATUS_SOLICITACAO.EMATENDIMENTO]: 'Em Andamento',
   [STATUS_SOLICITACAO.CONCLUIDO]: 'Concluído',
   [STATUS_SOLICITACAO.RECUSADO]: 'Recusado',
   [STATUS_SOLICITACAO.CANCELADO]: 'Cancelado'
@@ -220,7 +285,7 @@ export const STATUS_SOLICITACAO_DISPLAY: Record<string, string> = {
 
 export const STATUS_SOLICITACAO_COLORS: Record<string, string> = {
   [STATUS_SOLICITACAO.PENDENTE]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  [STATUS_SOLICITACAO.EMANDAMENTO]: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  [STATUS_SOLICITACAO.EMATENDIMENTO]: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   [STATUS_SOLICITACAO.CONCLUIDO]: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   [STATUS_SOLICITACAO.RECUSADO]: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   [STATUS_SOLICITACAO.CANCELADO]: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'

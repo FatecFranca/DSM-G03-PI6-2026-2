@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { gravarLog } = require('../utils/logGrava.js');
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
 
 /**
  * Gera usuário para Gestor ADMINUNIDADE
@@ -105,18 +106,18 @@ async function gerarUsuarioGestorComum(unidadeId) {
 async function calcularLetrasParaUnidade(unidadeId) {
     const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const base = alfabeto.length;
-    
+
     // Calcular quantos grupos de 999 já passaram
     const grupo = Math.floor((unidadeId - 1) / 999);
     let num = grupo;
     let letras = '';
-    
+
     for (let i = 0; i < 2; i++) {
         const resto = num % base;
         letras = alfabeto[resto] + letras;
         num = Math.floor(num / base);
     }
-    
+
     return letras;
 }
 
@@ -134,22 +135,22 @@ async function calcularLetrasParaUnidade(unidadeId) {
 async function calcularLetrasParaNumero(contador, tamanho = 3) {
     const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const base = alfabeto.length;
-    
+
     // Calcular o bloco: a cada 999 gestores, sobe 1 bloco
     // contador 1-999 → bloco 0
     // contador 1000-1999 → bloco 1
     // contador 2000-2999 → bloco 2
     const bloco = Math.floor((contador - 1) / 999);
-    
+
     let num = bloco;
     let resultado = '';
-    
+
     for (let i = 0; i < tamanho; i++) {
         const resto = num % base;
         resultado = alfabeto[resto] + resultado;
         num = Math.floor(num / base);
     }
-    
+
     return resultado;
 }
 
@@ -447,6 +448,18 @@ class GestorController {
                 });
             }
 
+            if (GestorEmail && GestorEmail.trim()) {
+                if (!validarEmail(GestorEmail)) {
+                    return res.status(400).json({ error: 'E-mail inválido' });
+                }
+            }
+
+            if (GestorTelefone && GestorTelefone.trim()) {
+                if (!validarTelefone(GestorTelefone)) {
+                    return res.status(400).json({ error: 'Telefone inválido' });
+                }
+            }
+
             // Verificar se a unidade existe
             const unidade = await prisma.unidade.findUnique({
                 where: { UnidadeId: parseInt(UnidadeId) }
@@ -527,7 +540,7 @@ class GestorController {
 
             // --- Gravar log de criação
             let LogAcao;
-            if (GestorNivel === 'ADMINUNIDADE'){
+            if (GestorNivel === 'ADMINUNIDADE') {
                 LogAcao = 'CADASTRARGESTORADM'
             } else {
                 LogAcao = 'CADASTRARGESTORCOMUM'
@@ -766,11 +779,17 @@ class GestorController {
 
             // Email
             if (GestorEmail !== undefined) {
+                if (!validarEmail(GestorEmail)) {
+                    return res.status(400).json({ error: 'E-mail inválido' });
+                }
                 dadosAtualizacao.GestorEmail = GestorEmail?.trim() || null;
             }
 
             // Telefone
             if (GestorTelefone !== undefined) {
+                if (!validarTelefone(GestorTelefone)) {
+                    return res.status(400).json({ error: 'Telefone inválido' });
+                }
                 dadosAtualizacao.GestorTelefone = GestorTelefone?.trim() || null;
             }
 
@@ -925,7 +944,7 @@ class GestorController {
 
             // --- Gravar log de alteração
             const LogAcao = 'ALTERARGESTOR';
-            const LogDetelhe = 'Foi alterado o Gestor de Usuário Antes da Alteração (' + gestorAntesSemSenhaID.GestorUsuario + ') / Usuário depois da alteração (' + gestorSemSenhaID.GestorUsuario + '), dados antes da alteração (' + JSON.stringify(gestorAntesSemSenhaID) + ')' + ', dados depois da alteração (' + JSON.stringify(gestorSemSenhaID) +  ')';
+            const LogDetelhe = 'Foi alterado o Gestor de Usuário Antes da Alteração (' + gestorAntesSemSenhaID.GestorUsuario + ') / Usuário depois da alteração (' + gestorSemSenhaID.GestorUsuario + '), dados antes da alteração (' + JSON.stringify(gestorAntesSemSenhaID) + ')' + ', dados depois da alteração (' + JSON.stringify(gestorSemSenhaID) + ')';
             await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorSemSenha.GestorId);
             // ---
 
@@ -1203,7 +1222,7 @@ class GestorController {
 
             // --- Gravar log de alteração
             const LogAcao = 'ALTERARSTATUSGESTOR';
-            const LogDetelhe = 'Foi alterado o status do Gestor (' + gestorSemSenha.GestorUsuario + '), de ('+ gestorAlterar.GestorStatus + ' para ' + gestorSemSenha.GestorStatus + ')';
+            const LogDetelhe = 'Foi alterado o status do Gestor (' + gestorSemSenha.GestorUsuario + '), de (' + gestorAlterar.GestorStatus + ' para ' + gestorSemSenha.GestorStatus + ')';
             await gravarLog(String(usuarioLogado.usuarioId), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorAtualizado.GestorId);
             // ---
 
@@ -1380,7 +1399,7 @@ class GestorController {
         }
 
     }
-    
+
 }
 
 module.exports = new GestorController();

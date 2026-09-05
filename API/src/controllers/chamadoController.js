@@ -301,7 +301,7 @@ class ChamadoController {
 
             // Buscar chamado
             const chamadoExistente = await prisma.chamado.findUnique({
-                where: { ChamadoId: chamadoId, ChamadoStatus: { notIn: ['ATRIBUIDO', 'CANCELADO', 'CONCLUIDO', 'EMATENDIMENTO', 'FALTAINFORMACAO', 'RECUSADO'] } },
+                where: { ChamadoId: chamadoId, ChamadoStatus: { notIn: ['ATRIBUIDO', 'CANCELADO', 'CONCLUIDO', 'EMATENDIMENTO', 'RECUSADO'] } },
                 include: {
                     Pessoa: true,
                     Unidade: true,
@@ -393,6 +393,11 @@ class ChamadoController {
                         }
                         dadosAtualizacao.ChamadoBloqueioVia = ChamadoBloqueioVia;
                     }
+
+                    // Set status for FALTAINFORMACAO, volta para PROCESSAMENTO para nova análise
+                    if (chamadoExistente.ChamadoStatus === 'FALTAINFORMACAO') {
+                        dadosAtualizacao.ChamadoStatus = 'PROCESSAMENTO';
+                    }
                 }
             }
 
@@ -405,6 +410,13 @@ class ChamadoController {
                 if (gestorLogado && gestorLogado.UnidadeId === chamadoExistente.UnidadeId) {
                     podeAlterar = true;
                     tipoAcesso = 'GESTOR';
+                }
+
+                console.log('Gestor logado = ', gestorLogado);
+                if (chamadoExistente.ChamadoStatus === 'FALTAINFORMACAO') {
+                    return res.status(403).json({
+                        error: 'Você não tem permissão para alterar os dados deste chamado por causa do seu status'
+                    });
                 }
             }
 
@@ -1111,9 +1123,9 @@ class ChamadoController {
 
                 if (tecnicoEquipe) {
                     // Técnico não pode cancelar reportar falta de informação ou recusar o chamado
-                    if (ChamadoStatus === 'CANCELADO' || ChamadoStatus === 'RECUSADO' || ChamadoStatus === 'FALTAINFORMACAO') {
+                    if (ChamadoStatus !== 'EMATENDIMENTO' && ChamadoStatus !== 'CONCLUIDO' && ChamadoStatus !== 'ATRIBUIDO') {
                         return res.status(403).json({
-                            error: 'Técnicos não podem cancelar ou recusar chamados'
+                            error: 'Técnicos não podem alterar para esse status ' + ChamadoStatus
                         });
                     }
                     podeAlterarStatus = true;
@@ -1143,7 +1155,7 @@ class ChamadoController {
                 'ANALISADO': ['ATRIBUIDO', 'PENDENTE', 'RECUSADO', 'FALTAINFORMACAO'],
                 'ATRIBUIDO': ['EMATENDIMENTO', 'ANALISADO'],
                 'EMATENDIMENTO': ['CONCLUIDO', 'ANALISADO'],
-                'FALTAINFORMACAO': ['RECUSADO', 'CANCELADO', 'PENDENTE', 'ANALISADO'],
+                'FALTAINFORMACAO': ['RECUSADO', 'CANCELADO', 'PENDENTE', 'ANALISADO', 'PROCESSAMENTO'],
                 'CONCLUIDO': [],
                 'CANCELADO': [],
                 'RECUSADO': []
@@ -1171,13 +1183,18 @@ class ChamadoController {
             }
 
             // Se for recusar, informar motivo na descrição formatada
-            if (ChamadoStatus === 'RECUSADO') {
+            if (ChamadoStatus === 'RECUSADO' || ChamadoStatus === 'FALTAINFORMACAO') {
                 if (!ChamadoDescricaoFormatada || !ChamadoDescricaoFormatada.trim()) {
                     return res.status(400).json({
-                        error: 'Motivo da recusa é obrigatório'
+                        error: 'Motivo da recusa ou falta de informação é obrigatório'
                     });
                 }
                 dadosAtualizacao.ChamadoDescricaoFormatada = ChamadoDescricaoFormatada.trim();
+            }
+
+            // Se for do status FALTAINFORMACAO para outro, limpar a descrição formatada
+            if (chamado.ChamadoStatus === 'FALTAINFORMACAO' && ChamadoStatus !== 'FALTAINFORMACAO') {
+                dadosAtualizacao.ChamadoDescricaoFormatada = null;
             }
 
             // Se for atribuir a equipe, validar equipe e adicionar

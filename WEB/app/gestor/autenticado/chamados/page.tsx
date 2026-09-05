@@ -38,6 +38,7 @@ import {
 import { listarChamados, getEstatisticas, type Chamado, type ChamadoFilters, type Estatisticas } from "@/lib/chamado-service"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { formatarDataBrasil } from '@/utils/dateUtils'
 
 // Componente de Status Badge
 function StatusBadge({ status }: { status: string }) {
@@ -171,10 +172,6 @@ export default function ChamadosPage() {
   useEffect(() => {
     setPaginaAtual(1);
   }, [searchTerm, filters.status, filters.urgencia, filters.dataInicio, filters.dataFim]);
-
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy HH:mm", { locale: ptBR });
-  };
 
   // Filtrar os dados (local)
   const chamadosFiltrados = useMemo(() => {
@@ -563,7 +560,7 @@ export default function ChamadosPage() {
 
                       <span className="flex items-center gap-1">
                         <Calendar size={14} />
-                        {formatDate(chamado.ChamadoDtAbertura)}
+                        {formatarDataBrasil(chamado.ChamadoDtAbertura)}
                       </span>
 
                       {chamado._count && (

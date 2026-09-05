@@ -2,13 +2,14 @@
 const prisma = require('../prisma.js');
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 const { gravarLog } = require('../utils/logGrava.js');
+const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
 
 // Para todas as funções
 const statusValidos = ['PENDENTE', 'EMATENDIMENTO', 'CONCLUIDO', 'RECUSADO', 'FALTAINFORMACAO', 'CANCELADO']
 const tiposValidos = ['CADASTROPESSOAUNIDADE', 'ALTERACAODADOSPESSOA', 'ALTERACAODADOSTECNICO', 'ALTERACAODADOSGESTORCOMUM', 'ALTERACAODADOSGESTORADM', 'CADASTROGESTORADM', 'SOLICITARTROCAUNIDADEPESSOA', 'SOLICITARTROCAUNIDADEPESSOAGESTOR', 'DIVERSAS'];
 const tiposValidosAdm = ['ALTERACAODADOSGESTORADM', 'CADASTROGESTORADM', 'SOLICITARTROCAUNIDADEPESSOAGESTOR'];
-const tiposValidosGestor = ['CADASTROPESSOAUNIDADE', 'ALTERACAODADOSPESSOA', 'ALTERACAODADOSTECNICO', 'SOLICITARTROCAUNIDADEPESSOA'];
-const tiposValidosGestorAdm = ['CADASTROPESSOAUNIDADE', 'ALTERACAODADOSPESSOA', 'ALTERACAODADOSTECNICO', 'ALTERACAODADOSGESTORCOMUM', 'SOLICITARTROCAUNIDADEPESSOA'];
+const tiposValidosGestor = ['CADASTROPESSOAUNIDADE', 'ALTERACAODADOSPESSOA', 'ALTERACAODADOSTECNICO', 'SOLICITARTROCAUNIDADEPESSOA', 'DIVERSAS'];
+const tiposValidosGestorAdm = ['CADASTROPESSOAUNIDADE', 'ALTERACAODADOSPESSOA', 'ALTERACAODADOSTECNICO', 'ALTERACAODADOSGESTORCOMUM', 'SOLICITARTROCAUNIDADEPESSOA', 'DIVERSAS'];
 
 class SolicitacaoController {
 
@@ -20,7 +21,10 @@ class SolicitacaoController {
             const {
                 UnidadeId,
                 SolicitacaoTipo,
-                SolicitacaoDescricao,
+                SolicitacaoDescricao
+            } = req.body;
+
+            let {
                 SolicitacaoSolicitanteNome,
                 SolicitacaoSolicitanteEmail,
                 SolicitacaoSolicitanteTelefone
@@ -79,24 +83,36 @@ class SolicitacaoController {
                             where: { TecnicoId: req.usuario.usuarioId }
                         });
                         UnidadeIdGrava = usuarioLogado.UnidadeId;
+                        SolicitacaoSolicitanteNome = usuarioLogado.TecnicoNome
+                        SolicitacaoSolicitanteEmail = usuarioLogado.TecnicoEmail
+                        SolicitacaoSolicitanteTelefone = usuarioLogado.TecnicoTelefone
                         break;
                     case "PESSOA":
                         usuarioLogado = await prisma.pessoa.findUnique({
                             where: { PessoaId: req.usuario.usuarioId }
                         });
                         UnidadeIdGrava = usuarioLogado.UnidadeId;
+                        SolicitacaoSolicitanteNome = usuarioLogado.PessoaNome
+                        SolicitacaoSolicitanteEmail = usuarioLogado.PessoaEmail
+                        SolicitacaoSolicitanteTelefone = usuarioLogado.PessoaTelefone
                         break;
                     case "GESTOR":
                         usuarioLogado = await prisma.gestor.findUnique({
                             where: { GestorId: req.usuario.usuarioId, GestorStatus: 'ATIVO' }
                         });
                         UnidadeIdGrava = usuarioLogado.UnidadeId;
+                        SolicitacaoSolicitanteNome = usuarioLogado.GestorNome
+                        SolicitacaoSolicitanteEmail = usuarioLogado.GestorEmail
+                        SolicitacaoSolicitanteTelefone = usuarioLogado.GestorTelefone
                         break;
                     case "ADMINISTRADOR":
                         usuarioLogado = await prisma.administrador.findUnique({
                             where: { AdministradorId: parseInt(req.usuario.usuarioId) }
                         });
                         UnidadeIdGrava = null;
+                        SolicitacaoSolicitanteNome = 'Administrador Geral do Sistema'
+                        SolicitacaoSolicitanteEmail = null
+                        SolicitacaoSolicitanteTelefone = null
                         break;
                     default:
                         return res.status(404).json({
@@ -121,12 +137,20 @@ class SolicitacaoController {
                         return res.status(400).json({
                             error: 'É necessário fornecer o e-mail do solicitante para contato'
                         });
+                    } else {
+                        if (!validarEmail(SolicitacaoSolicitanteEmail)) {
+                            return res.status(400).json({ error: 'E-mail inválido' });
+                        }
                     }
 
                     if (!SolicitacaoSolicitanteTelefone) {
                         return res.status(400).json({
                             error: 'É necessário fornecer o telefone do solicitante para contato'
                         });
+                    } else {
+                        if (!validarTelefone(SolicitacaoSolicitanteTelefone)) {
+                            return res.status(400).json({ error: 'Telefone inválido' });
+                        }
                     }
                 }
             }
@@ -218,12 +242,14 @@ class SolicitacaoController {
 
             // Filtrar por status
             if (status) {
-                if (!statusValidos.includes(status)) {
-                    return res.status(400).json({
-                        error: 'Status inválido para filtro'
-                    });
+                if (status !== 'TODOS') {
+                    if (!statusValidos.includes(status)) {
+                        return res.status(400).json({
+                            error: 'Status inválido para filtro'
+                        });
+                    }
+                    filtro.SolicitacaoStatus = status;
                 }
-                filtro.SolicitacaoStatus = status;
             }
 
             // Filtrar por tipo
@@ -377,7 +403,7 @@ class SolicitacaoController {
                     },
                     AtividadeSolicitacao: {
                         orderBy: {
-                            AtivSolDt: 'desc'
+                            AtividadeSolicitacaoDtRealizacao: 'desc'
                         },
                         take: 10
                     }
@@ -401,7 +427,8 @@ class SolicitacaoController {
     // =============================================
     async buscarSolicitacaoPorId(req, res) {
         try {
-            const id = req.params;
+            let id = req.params.id;
+            console.log('id = ', id);
             const usuarioLogado = req.usuario;
 
             // Verificar se o usuário é GESTOR ou ADMINISTRADOR
@@ -426,12 +453,18 @@ class SolicitacaoController {
                     },
                     AtividadeSolicitacao: {
                         orderBy: {
-                            AtivSolDt: 'desc'
+                            AtividadeSolicitacaoDtRealizacao: 'desc'
                         },
                         take: 10
                     }
                 }
             });
+
+            if (!solicitacao) {
+                return res.status(404).json({
+                    error: 'Solicitação não encontrada'
+                });
+            }
 
             if (usuarioLogado.usuarioTipo === 'PESSOA' || usuarioLogado.usuarioTipo === 'TECNICO') {
                 if (solicitacao.SolicitacaoIdRelacional !== usuarioLogado.usuarioId) {
@@ -446,13 +479,13 @@ class SolicitacaoController {
                     }
                 });
 
-                if (!gestor){
+                if (!gestor) {
                     return res.status(400).json({
                         error: 'Gestor não encontrado'
                     });
                 }
 
-                if (gestor.UnidadeId !== solicitacao.UnidadeId){
+                if (gestor.UnidadeId !== solicitacao.UnidadeId) {
                     return res.status(403).json({
                         error: 'Você só pode visualizar as solicitações da sua unidade'
                     });
@@ -500,12 +533,11 @@ class SolicitacaoController {
                 });
             }
 
-            if (usuarioLogado.usuarioTipo === 'PESSOA' || usuarioLogado.usuarioTipo !== 'TECNICO') {
+            if (usuarioLogado.usuarioTipo === 'PESSOA' || usuarioLogado.usuarioTipo === 'TECNICO') {
                 if (SolicitacaoStatus !== 'CANCELADO') {
                     return res.status(400).json({
                         error: 'Cidadões e técnicos só podem cancelar a solicitação'
                     });
-
                 }
             }
 
@@ -563,11 +595,37 @@ class SolicitacaoController {
             }
 
             // Preparar dados para atualização
-            let dadosAtualizacao;
+            let dadosAtualizacao = {};
             dadosAtualizacao.SolicitacaoStatus = SolicitacaoStatus;
 
             // Se status for CONCLUIDO ou RECUSADO ou CANCELADO, exige usuarioFinalizou
-            if (SolicitacaoStatus === 'CONCLUIDO' || SolicitacaoStatus === 'RECUSADO') {
+            if (SolicitacaoStatus === 'CONCLUIDO' || SolicitacaoStatus === 'RECUSADO' || SolicitacaoStatus === 'FALTAINFORMACAO') {
+                const atividades = await prisma.atividadeSolicitacao.findMany({
+                    where: {
+                        SolicitacaoId: id
+                    },
+                    orderBy: {
+                        AtividadeSolicitacaoDtRealizacao: 'desc'
+                    },
+                    take: 1
+                });
+                if (atividades.length <= 0) {
+                    let retorno;
+                    switch (SolicitacaoStatus) {
+                        case 'CONCLUIDO':
+                            retorno = 'Documente as atividades realizadas antes de concluir a solicitação';
+                            break;
+                        case 'RECUSADO':
+                            retorno = 'Informe o motivo da recusa nas atividades antes de recusar a solicitação';
+                            break;
+                        case 'FALTAINFORMACAO':
+                            retorno = 'Informe o que falta na solicitação nas atividades antes de marcar a solicitação como falta de informação';
+                            break;
+                    }
+                    return res.status(400).json({
+                        error: retorno
+                    });
+                }
                 dadosAtualizacao.SolicitacaoUsuarioFinalizou = usuarioLogadoFinalizaou.trim();
             }
 

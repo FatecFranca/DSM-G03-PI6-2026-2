@@ -142,7 +142,7 @@ class _CreateSolicitacaoScreenState extends State<CreateSolicitacaoScreen> {
       }
 
       final response = await http
-          .get(Uri.parse('${AppConfig.baseUrl}/api/unidade'), headers: headers)
+          .get(Uri.parse('${AppConfig.baseUrl}/api/unidade/listar/ativas'), headers: headers)
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {

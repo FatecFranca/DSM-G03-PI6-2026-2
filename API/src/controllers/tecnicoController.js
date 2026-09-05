@@ -4,6 +4,134 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
+
+/**
+ * Gera usuário para Técnico
+ * Formato: T + {letrasUnidade} + {numeroUnidade} + {letrasContador} + {numeroContador}
+ * 
+ * Exemplos:
+ * - Unidade 1, 1º técnico: TAA001AAA001
+ * - Unidade 1, 2º técnico: TAA001AAA002
+ * - Unidade 1, 999º técnico: TAA001AAA999
+ * - Unidade 1, 1000º técnico: TAA001AAB001
+ * - Unidade 1, 1001º técnico: TAA001AAB002
+ * - Unidade 1, 1999º técnico: TAA001AAB999
+ * - Unidade 1, 2000º técnico: TAA001AAC001
+ * - Unidade 1000, 1º técnico: TAB001AAA001
+ */
+async function gerarUsuarioTecnico(unidadeId) {
+    // 1. Calcular a parte fixa da UNIDADE (ex: AA001, AB001, ...)
+    const letrasUnidade = await calcularLetrasParaUnidade(unidadeId);
+    const numeroUnidade = await formatarNumero(unidadeId);
+    const parteUnidade = `${letrasUnidade}${numeroUnidade}`;
+
+    // 2. Buscar todos os técnicos da unidade para determinar o próximo contador
+    const tecnicos = await prisma.tecnico.findMany({
+        where: {
+            UnidadeId: unidadeId
+        },
+        orderBy: {
+            TecnicoId: 'asc'
+        }
+    });
+
+    // 3. Calcular o próximo número de contador (baseado na quantidade existente)
+    const contador = tecnicos.length + 1;
+
+    // 4. Calcular a parte do CONTADOR
+    const letrasContador = await calcularLetrasParaNumero(contador, 3);
+    const numeroContador = await calcularNumeroContador(contador);
+    const parteContador = `${letrasContador}${numeroContador}`;
+
+    // 5. Montar o usuário final
+    return `T${parteUnidade}${parteContador}`;
+}
+
+/**
+ * Calcula as letras para a UNIDADE (AA, AB, AC, ..., ZZ)
+ * Baseado no ID da unidade
+ */
+async function calcularLetrasParaUnidade(unidadeId) {
+    const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const base = alfabeto.length;
+
+    // Calcular quantos grupos de 999 já passaram
+    const grupo = Math.floor((unidadeId - 1) / 999);
+    let num = grupo;
+    let letras = '';
+
+    for (let i = 0; i < 2; i++) {
+        const resto = num % base;
+        letras = alfabeto[resto] + letras;
+        num = Math.floor(num / base);
+    }
+
+    return letras;
+}
+
+/**
+ * Calcula as letras para o CONTADOR (AAA, AAB, ..., ZZZ)
+ * Baseado no bloco do contador (cada bloco tem 999 números)
+ */
+async function calcularLetrasParaNumero(contador, tamanho = 3) {
+    const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const base = alfabeto.length;
+
+    // Calcular o bloco: a cada 999 gestores, sobe 1 bloco
+    const bloco = Math.floor((contador - 1) / 999);
+
+    let num = bloco;
+    let resultado = '';
+
+    for (let i = 0; i < tamanho; i++) {
+        const resto = num % base;
+        resultado = alfabeto[resto] + resultado;
+        num = Math.floor(num / base);
+    }
+
+    return resultado;
+}
+
+/**
+ * Calcula o número formatado para o CONTADOR
+ * O número vai de 001 a 999, resetando a cada bloco
+ */
+async function calcularNumeroContador(contador) {
+    const numero = ((contador - 1) % 999) + 1;
+    return formatarNumero(numero);
+}
+
+/**
+ * Formata um número para 3 dígitos com zeros à esquerda
+ */
+async function formatarNumero(numero) {
+    return String(numero).padStart(3, '0');
+}
+
+/**
+ * Gera um usuário único (em caso de colisão)
+ */
+async function gerarUsuarioUnico(usuarioBase) {
+    let tentativa = 1;
+    let usuario = usuarioBase;
+    let existe = await prisma.tecnico.findUnique({
+        where: { TecnicoUsuario: usuario }
+    });
+
+    while (existe) {
+        // Para TÉCNICO, adicionar um sufixo
+        usuario = `${usuarioBase}_${tentativa}`;
+
+        existe = await prisma.tecnico.findUnique({
+            where: { TecnicoUsuario: usuario }
+        });
+        tentativa++;
+    }
+
+    return usuario;
+}
+
 
 class TecnicoController {
 
@@ -105,7 +233,7 @@ class TecnicoController {
             // Retornar dados do técnico (sem a senha)
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
 
-            res.status(200).json({
+            return res.status(200).json({
                 message: 'Login realizado com sucesso',
                 data: {
                     usuario: tecnicoSemSenha,
@@ -116,7 +244,7 @@ class TecnicoController {
 
         } catch (error) {
             console.error('Erro no login do técnico:', error);
-            res.status(500).json({
+            return res.status(500).json({
                 error: 'Erro no login do técnico'
             });
         }
@@ -132,7 +260,6 @@ class TecnicoController {
                 TecnicoEmail,
                 TecnicoTelefone,
                 TecnicoCPF,
-                TecnicoUsuario,
                 TecnicoSenha,
                 TecnicoStatus
             } = req.body;
@@ -154,10 +281,6 @@ class TecnicoController {
 
             if (!TecnicoCPF || !TecnicoCPF.trim()) {
                 return res.status(400).json({ error: 'CPF é obrigatório' });
-            }
-
-            if (!TecnicoUsuario || !TecnicoUsuario.trim()) {
-                return res.status(400).json({ error: 'Usuário é obrigatório' });
             }
 
             if (!TecnicoSenha || !TecnicoSenha.trim()) {
@@ -222,8 +345,8 @@ class TecnicoController {
             });
 
             if (!departamento) {
-                return res.status(404).json({ 
-                    error: 'Departamento não encontrado ou não pertence à unidade informada' 
+                return res.status(404).json({
+                    error: 'Departamento não encontrado ou não pertence à unidade informada'
                 });
             }
 
@@ -252,21 +375,32 @@ class TecnicoController {
                 return res.status(409).json({ error: 'CPF já cadastrado' });
             }
 
-            // Verificar duplicidade de usuário
+            // Validar email se fornecido
+            if (TecnicoEmail && TecnicoEmail.trim()) {
+                if (!validarEmail(TecnicoEmail)) {
+                    return res.status(400).json({ error: 'E-mail inválido' });
+                }
+            }
+
+            // Validar telefone se fornecido
+            if (TecnicoTelefone && TecnicoTelefone.trim()) {
+                if (!validarTelefone(TecnicoTelefone)) {
+                    return res.status(400).json({ error: 'Telefone inválido' });
+                }
+            }
+
+            // ========== GERAR USUÁRIO AUTOMATICAMENTE ==========
+            const unidadeId = parseInt(UnidadeId);
+            let tecnicoUsuario = await gerarUsuarioTecnico(unidadeId);
+
+            // Verificar se o usuário gerado já existe (evitar colisão)
             const usuarioExistente = await prisma.tecnico.findUnique({
-                where: { TecnicoUsuario: TecnicoUsuario.trim() }
+                where: { TecnicoUsuario: tecnicoUsuario }
             });
 
             if (usuarioExistente) {
-                return res.status(409).json({ error: 'Nome de usuário já está em uso' });
-            }
-
-            // Validar email se fornecido
-            if (TecnicoEmail && TecnicoEmail.trim()) {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(TecnicoEmail.trim())) {
-                    return res.status(400).json({ error: 'E-mail inválido' });
-                }
+                // Se já existe, gerar outro
+                tecnicoUsuario = await gerarUsuarioUnico(tecnicoUsuario);
             }
 
             // Criptografar senha
@@ -278,12 +412,12 @@ class TecnicoController {
             const tecnico = await prisma.tecnico.create({
                 data: {
                     DepartamentoId: DepartamentoId,
-                    UnidadeId: parseInt(UnidadeId),
+                    UnidadeId: unidadeId,
                     TecnicoNome: TecnicoNome.trim(),
                     TecnicoEmail: TecnicoEmail?.trim() || null,
                     TecnicoTelefone: TecnicoTelefone?.trim() || null,
                     TecnicoCPF: TecnicoCPF.trim(),
-                    TecnicoUsuario: TecnicoUsuario.trim(),
+                    TecnicoUsuario: tecnicoUsuario,
                     TecnicoSenha: senhaHash,
                     TecnicoStatus: TecnicoStatus || 'ATIVO',
                     TecnicoDtCadastro: getBrasilDateTime()
@@ -309,14 +443,15 @@ class TecnicoController {
             // Remover senha do retorno
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
 
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Técnico cadastrado com sucesso',
-                data: tecnicoSemSenha
+                data: tecnicoSemSenha,
+                usuarioGerado: tecnicoUsuario
             });
 
         } catch (error) {
             console.error('Erro ao cadastrar técnico:', error);
-            res.status(500).json({ error: 'Erro ao cadastrar técnico' });
+            return res.status(500).json({ error: 'Erro ao cadastrar técnico' });
         }
     }
 
@@ -444,42 +579,12 @@ class TecnicoController {
                 });
             }
 
-            // Preparar dados para atualização
-            const dadosAtualizacao = {};
+            // =============================================
+            // VERIFICAR SE A UNIDADE VAI MUDAR (apenas gestor)
+            // =============================================
+            const unidadeVaiMudar = UnidadeId !== undefined && UnidadeId !== tecnicoAlterar.UnidadeId;
 
-            // Validar e adicionar campos (apenas gestor pode alterar campos sensíveis)
-            if (DepartamentoId !== undefined && usuarioLogado.usuarioTipo === 'GESTOR') {
-                // Verificar se o departamento existe e pertence à unidade
-                const departamento = await prisma.departamento.findFirst({
-                    where: {
-                        DepartamentoId: DepartamentoId,
-                        UnidadeId: tecnicoAlterar.UnidadeId
-                    }
-                });
-
-                if (!departamento) {
-                    return res.status(404).json({ 
-                        error: 'Departamento não encontrado ou não pertence à unidade do técnico' 
-                    });
-                }
-
-                if (departamento.DepartamentoStatus !== 'ATIVO') {
-                    return res.status(400).json({
-                        error: 'Não é possível transferir técnico para um departamento inativo ou bloqueado'
-                    });
-                }
-
-                dadosAtualizacao.DepartamentoId = DepartamentoId;
-            }
-
-            if (UnidadeId !== undefined && usuarioLogado.usuarioTipo === 'GESTOR') {
-                // Apenas gestor pode alterar unidade
-                if (gestorLogado.UnidadeId !== parseInt(UnidadeId)) {
-                    return res.status(403).json({
-                        error: 'Você só pode transferir técnicos para sua própria unidade'
-                    });
-                }
-
+            if (unidadeVaiMudar && usuarioLogado.usuarioTipo === 'GESTOR') {
                 // Verificar se a nova unidade existe e está ativa
                 const novaUnidade = await prisma.unidade.findUnique({
                     where: { UnidadeId: parseInt(UnidadeId) }
@@ -495,9 +600,46 @@ class TecnicoController {
                     });
                 }
 
-                dadosAtualizacao.UnidadeId = parseInt(UnidadeId);
+                // Gestor só pode transferir para sua própria unidade
+                if (gestorLogado.UnidadeId !== parseInt(UnidadeId)) {
+                    return res.status(403).json({
+                        error: 'Você só pode transferir técnicos para sua própria unidade'
+                    });
+                }
             }
 
+            // Preparar dados para atualização
+            const dadosAtualizacao = {};
+
+            // =============================================
+            // RECALCULAR USUÁRIO SE A UNIDADE MUDOU
+            // =============================================
+            let novoUsuarioGerado = null;
+
+            if (unidadeVaiMudar && usuarioLogado.usuarioTipo === 'GESTOR') {
+                dadosAtualizacao.UnidadeId = parseInt(UnidadeId);
+
+                // Gerar novo usuário baseado na nova unidade
+                const novoUsuario = await gerarUsuarioTecnico(parseInt(UnidadeId));
+
+                // Verificar se o novo usuário já existe (evitar colisão)
+                const usuarioExistente = await prisma.tecnico.findFirst({
+                    where: {
+                        TecnicoUsuario: novoUsuario,
+                        TecnicoId: { not: tecnicoId }
+                    }
+                });
+
+                if (usuarioExistente) {
+                    novoUsuarioGerado = await gerarUsuarioUnico(novoUsuario);
+                } else {
+                    novoUsuarioGerado = novoUsuario;
+                }
+
+                dadosAtualizacao.TecnicoUsuario = novoUsuarioGerado;
+            }
+
+            // Nome
             if (TecnicoNome !== undefined) {
                 if (!TecnicoNome.trim()) {
                     return res.status(400).json({ error: 'Nome do técnico não pode ser vazio' });
@@ -505,22 +647,36 @@ class TecnicoController {
                 dadosAtualizacao.TecnicoNome = TecnicoNome.trim();
             }
 
+            console.log('TecnicoEmail = ', TecnicoEmail);
+            console.log('TecnicoTelefone = ', TecnicoEmail);
+            console.log('req.body = ', req.body);
+
+            // Email
             if (TecnicoEmail !== undefined) {
                 if (TecnicoEmail && TecnicoEmail.trim()) {
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(TecnicoEmail.trim())) {
+                    if (!validarEmail(TecnicoEmail)) {
                         return res.status(400).json({ error: 'E-mail inválido' });
                     }
+                    dadosAtualizacao.TecnicoEmail = TecnicoEmail.trim();
+                } else {
+                    dadosAtualizacao.TecnicoEmail = null;
                 }
-                dadosAtualizacao.TecnicoEmail = TecnicoEmail?.trim() || null;
             }
 
+            // Telefone
             if (TecnicoTelefone !== undefined) {
-                dadosAtualizacao.TecnicoTelefone = TecnicoTelefone?.trim() || null;
+                if (TecnicoTelefone && TecnicoTelefone.trim()) {
+                    if (!validarTelefone(TecnicoTelefone)) {
+                        return res.status(400).json({ error: 'Telefone inválido' });
+                    }
+                    dadosAtualizacao.TecnicoTelefone = TecnicoTelefone.trim();
+                } else {
+                    dadosAtualizacao.TecnicoTelefone = null;
+                }
             }
 
+            // CPF (apenas gestor pode alterar)
             if (TecnicoCPF !== undefined && usuarioLogado.usuarioTipo === 'GESTOR') {
-                // Apenas gestor pode alterar CPF
                 if (!TecnicoCPF.trim()) {
                     return res.status(400).json({ error: 'CPF não pode ser vazio' });
                 }
@@ -540,8 +696,8 @@ class TecnicoController {
                 dadosAtualizacao.TecnicoCPF = TecnicoCPF.trim();
             }
 
-            if (TecnicoUsuario !== undefined && usuarioLogado.usuarioTipo === 'GESTOR') {
-                // Apenas gestor pode alterar usuário
+            // Usuário (apenas gestor pode alterar, e apenas se a unidade NÃO mudou)
+            if (TecnicoUsuario !== undefined && usuarioLogado.usuarioTipo === 'GESTOR' && !unidadeVaiMudar) {
                 if (!TecnicoUsuario.trim()) {
                     return res.status(400).json({ error: 'Usuário não pode ser vazio' });
                 }
@@ -561,6 +717,7 @@ class TecnicoController {
                 dadosAtualizacao.TecnicoUsuario = TecnicoUsuario.trim();
             }
 
+            // Senha
             if (TecnicoSenha !== undefined) {
                 if (!TecnicoSenha.trim()) {
                     return res.status(400).json({ error: 'Senha não pode ser vazia' });
@@ -573,8 +730,8 @@ class TecnicoController {
                 dadosAtualizacao.TecnicoSenha = await bcrypt.hash(senhaComPepper, salt);
             }
 
+            // Status (apenas gestor pode alterar)
             if (TecnicoStatus !== undefined && usuarioLogado.usuarioTipo === 'GESTOR') {
-                // Apenas gestor pode alterar status
                 const statusValidos = ['ATIVO', 'INATIVO', 'BLOQUEADO'];
                 if (!statusValidos.includes(TecnicoStatus)) {
                     return res.status(400).json({
@@ -582,6 +739,31 @@ class TecnicoController {
                     });
                 }
                 dadosAtualizacao.TecnicoStatus = TecnicoStatus;
+            }
+
+            // Departamento (apenas gestor pode alterar)
+            if (DepartamentoId !== undefined && usuarioLogado.usuarioTipo === 'GESTOR') {
+                // Verificar se o departamento existe e pertence à unidade
+                const departamento = await prisma.departamento.findFirst({
+                    where: {
+                        DepartamentoId: DepartamentoId,
+                        UnidadeId: unidadeVaiMudar ? parseInt(UnidadeId) : tecnicoAlterar.UnidadeId
+                    }
+                });
+
+                if (!departamento) {
+                    return res.status(404).json({
+                        error: 'Departamento não encontrado ou não pertence à unidade do técnico'
+                    });
+                }
+
+                if (departamento.DepartamentoStatus !== 'ATIVO') {
+                    return res.status(400).json({
+                        error: 'Não é possível transferir técnico para um departamento inativo ou bloqueado'
+                    });
+                }
+
+                dadosAtualizacao.DepartamentoId = DepartamentoId;
             }
 
             // Verificar se há dados para atualizar
@@ -614,14 +796,15 @@ class TecnicoController {
             // Remover senha do retorno
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnicoAtualizado;
 
-            res.status(200).json({
+            return res.status(200).json({
                 message: 'Técnico atualizado com sucesso',
-                data: tecnicoSemSenha
+                data: tecnicoSemSenha,
+                ...(novoUsuarioGerado && { usuarioRecalculado: novoUsuarioGerado })
             });
 
         } catch (error) {
             console.error('Erro ao alterar técnico:', error);
-            res.status(500).json({ error: 'Erro ao alterar técnico' });
+            return res.status(500).json({ error: 'Erro ao alterar técnico' });
         }
     }
 
@@ -739,7 +922,7 @@ class TecnicoController {
                 return tecnicoSemSenha;
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: tecnicosSemSenha,
                 paginacao: {
                     paginaAtual,
@@ -751,7 +934,7 @@ class TecnicoController {
 
         } catch (error) {
             console.error('Erro ao listar técnicos:', error);
-            res.status(500).json({ error: 'Erro ao listar técnicos' });
+            return res.status(500).json({ error: 'Erro ao listar técnicos' });
         }
     }
 
@@ -838,13 +1021,15 @@ class TecnicoController {
             // Remover senha do retorno
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
 
-            res.status(200).json({
+            console.log('Login do técnico realizado com sucesso:', tecnicoSemSenha);
+
+            return res.status(200).json({
                 data: tecnicoSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao buscar técnico:', error);
-            res.status(500).json({ error: 'Erro ao buscar técnico' });
+            return res.status(500).json({ error: 'Erro ao buscar técnico' });
         }
     }
 
@@ -981,14 +1166,14 @@ class TecnicoController {
             // Remover senha do retorno
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnicoAtualizado;
 
-            res.status(200).json({
+            return res.status(200).json({
                 message: 'Status do técnico atualizado com sucesso',
                 data: tecnicoSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao alterar status do técnico:', error);
-            res.status(500).json({ error: 'Erro ao alterar status do técnico' });
+            return res.status(500).json({ error: 'Erro ao alterar status do técnico' });
         }
     }
 
@@ -1066,16 +1251,16 @@ class TecnicoController {
                 }
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: tecnicos
             });
 
         } catch (error) {
             console.error('Erro ao listar técnicos por unidade:', error);
-            res.status(500).json({ error: 'Erro ao listar técnicos por unidade' });
+            return res.status(500).json({ error: 'Erro ao listar técnicos por unidade' });
         }
     }
-    
+
 }
 
 module.exports = new TecnicoController();

@@ -81,10 +81,12 @@ router.get('/:id', unidadeController.buscarUnidadePorId);
  *                 paginacao:
  *                   $ref: '#/components/schemas/Paginacao'
  */
-router.get('/', unidadeController.listarUnidades);
+router.get('/listar/ativas', unidadeController.listarUnidades);
 
 // Todas as rotas abaixo exigem autenticação
 router.use(authMiddleware);
+
+router.get('/', unidadeController.listarUnidades);
 
 /**
  * @openapi

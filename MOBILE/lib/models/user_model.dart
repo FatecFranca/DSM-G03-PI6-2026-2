@@ -9,6 +9,7 @@ class UserProfile {
   final int? unidadeId;
   final String? token;
   final String? equipeId;
+  final String? usuario;
 
   UserProfile({
     required this.id,
@@ -21,6 +22,7 @@ class UserProfile {
     this.unidadeId,
     this.token,
     this.equipeId,
+    this.usuario,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -34,13 +36,14 @@ class UserProfile {
       phone: usuario['PessoaTelefone'] ?? usuario['TecnicoTelefone'] ?? '',
       cpfOrId:
           usuario['PessoaCPF'] ??
-          usuario['TecnicoMatricula'] ??
+          usuario['TecnicoCPF'] ??
           'Não informado',
       role: data['tipo'] ?? 'desconhecido',
       unitName: usuario['Unidade']?['UnidadeNome'] ?? 'Sem unidade',
       unidadeId: usuario['Unidade']?['UnidadeId'],
       equipeId: json['EquipeId'] ?? json['equipeId'],
       token: data['token'],
+      usuario: usuario['TecnicoUsuario'] ?? 'Não informado',
     );
   }
 }

@@ -8,7 +8,7 @@ class AtividadeChamadoController {
     async criarAtividade(req, res) {
         try {
             const { chamadoId } = req.params;
-            const { AtividadeDescricao } = req.body;
+            const { AtividadeDescricao, AtividadeUsuarioVer } = req.body;
             const usuarioLogado = req.usuario;
 
             // Validações básicas
@@ -106,7 +106,8 @@ class AtividadeChamadoController {
                     ChamadoId: chamadoId,
                     TecnicoId: tecnicoLogado.TecnicoId,
                     AtividadeDescricao: AtividadeDescricao.trim(),
-                    AtividadeDtRealizacao: getBrasilDateTime()
+                    AtividadeDtRealizacao: getBrasilDateTime(),
+                    AtividadeUsuarioVer: AtividadeUsuarioVer || 'GESTEC' // Apenas gestores e técnicos podem ver
                 },
                 include: {
                     Tecnico: {
@@ -149,7 +150,7 @@ class AtividadeChamadoController {
     async alterarAtividade(req, res) {
         try {
             const { id } = req.params;
-            const { AtividadeDescricao } = req.body;
+            const { AtividadeDescricao, AtividadeUsuarioVer } = req.body;
             const usuarioLogado = req.usuario;
 
             const atividadeId = id;
@@ -215,7 +216,8 @@ class AtividadeChamadoController {
             const atividadeAtualizada = await prisma.atividadeChamado.update({
                 where: { AtividadeId: atividadeId },
                 data: {
-                    AtividadeDescricao: AtividadeDescricao.trim()
+                    AtividadeDescricao: AtividadeDescricao.trim(),
+                    AtividadeUsuarioVer: AtividadeUsuarioVer || 'GESTEC' // Apenas gestores e técnicos podem ver
                 },
                 include: {
                     Tecnico: {
@@ -352,9 +354,14 @@ class AtividadeChamadoController {
             // Verificar permissão de visualização
             let podeVisualizar = false;
 
+            let filtroAtividades = {
+                ChamadoId: chamadoId
+            };
+
             if (usuarioLogado.usuarioTipo === 'PESSOA') {
                 // Pessoa só vê atividades dos seus próprios chamados
                 podeVisualizar = (chamado.PessoaId === usuarioLogado.usuarioId);
+                filtroAtividades.AtividadeUsuarioVer = 'TODOS'; // Pessoas só veem atividades públicas
             }
             else if (usuarioLogado.usuarioTipo === 'TECNICO') {
                 // Técnico vê atividades se pertence à equipe responsável ou é da mesma unidade
@@ -367,7 +374,7 @@ class AtividadeChamadoController {
                     if (tecnico.UnidadeId === chamado.UnidadeId) {
                         podeVisualizar = true;
                     }
-                    
+
                     // Verificar se pertence à equipe responsável
                     if (chamado.EquipeId) {
                         const pertenceEquipe = chamado.Equipe.TecnicoEquipe.some(
@@ -399,11 +406,10 @@ class AtividadeChamadoController {
                 });
             }
 
+            //console.log('Filtro de atividades:', filtroAtividades);
             // Buscar atividades
             const atividades = await prisma.atividadeChamado.findMany({
-                where: {
-                    ChamadoId: chamadoId
-                },
+                where: filtroAtividades,
                 orderBy: {
                     AtividadeDtRealizacao: ordem === 'asc' ? 'asc' : 'desc'
                 },
@@ -414,11 +420,16 @@ class AtividadeChamadoController {
                             TecnicoNome: true,
                             TecnicoEmail: true
                         }
-                    }
+                    },
+                    Chamado: {
+                        select: {
+                            ChamadoStatus: true
+                        }
+                    },
                 }
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: atividades,
                 total: atividades.length,
                 chamado: {
@@ -438,11 +449,11 @@ class AtividadeChamadoController {
     async listarAtividadesPorTecnico(req, res) {
         try {
             const { tecnicoId } = req.params;
-            const { 
-                dataInicio, 
-                dataFim, 
-                pagina = 1, 
-                limite = 10 
+            const {
+                dataInicio,
+                dataFim,
+                pagina = 1,
+                limite = 10
             } = req.query;
             const usuarioLogado = req.usuario;
 
@@ -487,13 +498,13 @@ class AtividadeChamadoController {
 
             if (dataInicio || dataFim) {
                 filtro.AtividadeDtRealizacao = {};
-                
+
                 if (dataInicio) {
                     const inicio = new Date(dataInicio);
                     inicio.setHours(0, 0, 0, 0);
                     filtro.AtividadeDtRealizacao.gte = inicio;
                 }
-                
+
                 if (dataFim) {
                     const fim = new Date(dataFim);
                     fim.setHours(23, 59, 59, 999);
@@ -764,7 +775,7 @@ class AtividadeChamadoController {
             res.status(500).json({ error: 'Erro ao buscar estatísticas' });
         }
     }
-    
+
 }
 
 module.exports = new AtividadeChamadoController();

@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../models/call_model.dart';
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
+import './call_activities_screen.dart';
 
 class CallsScreen extends StatefulWidget {
   const CallsScreen({super.key});
@@ -17,11 +18,10 @@ class CallsScreen extends StatefulWidget {
 }
 
 class CallsScreenState extends State<CallsScreen> {
-  List<CallModel> _filteredCalls = []; // Lista que será exibida
+  List<CallModel> _filteredCalls = [];
   String _searchQuery = "";
   String _selectedStatus = "TODOS";
 
-  // Mapeamento para exibição em português
   final Map<String, String> _statusDisplayNames = {
     "TODOS": "TODOS",
     "PROCESSAMENTO": "PROCESSAMENTO",
@@ -52,6 +52,84 @@ class CallsScreenState extends State<CallsScreen> {
   List<CallModel> _calls = [];
   bool _isLoading = true;
 
+  // =============================================
+  // ✅ CORES PADRONIZADAS POR STATUS
+  // =============================================
+  Color _getStatusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'PROCESSAMENTO':
+        return Colors.deepPurple;
+      case 'PENDENTE':
+        return Colors.orange;
+      case 'ANALISADO':
+        return Colors.blue;
+      case 'ATRIBUIDO':
+        return Colors.indigo;
+      case 'EMATENDIMENTO':
+        return Colors.cyan;
+      case 'CONCLUIDO':
+        return Colors.green;
+      case 'CANCELADO':
+        return Colors.red;
+      case 'RECUSADO':
+        return Colors.deepOrange;
+      case 'FALTAINFORMACAO':
+        return Colors.pink;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getStatusLightColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'PROCESSAMENTO':
+        return Colors.deepPurple.shade50;
+      case 'PENDENTE':
+        return Colors.orange.shade50;
+      case 'ANALISADO':
+        return Colors.blue.shade50;
+      case 'ATRIBUIDO':
+        return Colors.indigo.shade50;
+      case 'EMATENDIMENTO':
+        return Colors.cyan.shade50;
+      case 'CONCLUIDO':
+        return Colors.green.shade50;
+      case 'CANCELADO':
+        return Colors.red.shade50;
+      case 'RECUSADO':
+        return Colors.deepOrange.shade50;
+      case 'FALTAINFORMACAO':
+        return Colors.pink.shade50;
+      default:
+        return Colors.grey.shade50;
+    }
+  }
+
+  Color _getStatusBorderColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'PROCESSAMENTO':
+        return Colors.deepPurple.shade200;
+      case 'PENDENTE':
+        return Colors.orange.shade200;
+      case 'ANALISADO':
+        return Colors.blue.shade200;
+      case 'ATRIBUIDO':
+        return Colors.indigo.shade200;
+      case 'EMATENDIMENTO':
+        return Colors.cyan.shade200;
+      case 'CONCLUIDO':
+        return Colors.green.shade200;
+      case 'CANCELADO':
+        return Colors.red.shade200;
+      case 'RECUSADO':
+        return Colors.deepOrange.shade200;
+      case 'FALTAINFORMACAO':
+        return Colors.pink.shade200;
+      default:
+        return Colors.grey.shade200;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,7 +139,6 @@ class CallsScreenState extends State<CallsScreen> {
   void _applyFilters() {
     setState(() {
       _filteredCalls = _calls.where((call) {
-        // Garante que o status seja String antes de tratar
         final selected = _selectedStatus.replaceAll(" ", "").toUpperCase();
         final currentCallStatus = (call.status ?? "")
             .toString()
@@ -71,24 +148,38 @@ class CallsScreenState extends State<CallsScreen> {
         final matchesStatus =
             _selectedStatus == "TODOS" || currentCallStatus == selected;
 
-        // Garante que a descrição seja String para o contains
-        final desc = (call.descricaoInicial ?? "").toString().toLowerCase();
-        final query = _searchQuery.toLowerCase();
+        final query = _searchQuery.toLowerCase().trim();
 
-        final matchesSearch =
-            desc.contains(query) || call.id.toString().contains(query);
+        if (query.isEmpty) {
+          return matchesStatus;
+        }
+
+        final titulo = (call.titulo ?? "").toString().toLowerCase();
+        final matchesTitulo = titulo.contains(query);
+
+        final desc = (call.descricaoInicial ?? "").toString().toLowerCase();
+        final matchesDesc = desc.contains(query);
+
+        final idConcatenado = "${call.n1}-${call.n2}".toLowerCase();
+        final matchesId = idConcatenado.contains(query);
+
+        final matchesN1 = call.n1.toString().contains(query);
+        final matchesN2 = call.n2.toString().contains(query);
+
+        final matchesSearch = matchesTitulo || 
+                              matchesDesc || 
+                              matchesId || 
+                              matchesN1 || 
+                              matchesN2;
 
         return matchesStatus && matchesSearch;
       }).toList();
     });
   }
 
-  // Método público para permitir refresh externo
   Future<void> loadCalls() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-
-    // O BLOCO QUE ESTAVA AQUI FOI REMOVIDO POIS ESTAVA FORA DE ORDEM
 
     try {
       final themeModel = Provider.of<ThemeModel>(context, listen: false);
@@ -97,14 +188,6 @@ class CallsScreenState extends State<CallsScreen> {
       if (_currentUser == null) return;
 
       final uri = Uri.parse('${AppConfig.baseUrl}/api/chamado');
-      /*.replace(
-        queryParameters: {
-          'pagina': '1',
-          'limite': '50',
-          'pessoaId': _currentUser!.id.toString(),
-          'unidadeId': _currentUser!.unidadeId?.toString() ?? '',
-        },
-      );*/
 
       final response = await http.get(
         uri,
@@ -140,8 +223,20 @@ class CallsScreenState extends State<CallsScreen> {
     }
   }
 
+  void _navegarParaAtividades(CallModel call) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CallActivitiesScreen(
+          chamadoId: call.id ?? '',
+          chamadoN1: call.n1 ?? 0,
+          chamadoN2: call.n2 ?? 0,
+        ),
+      ),
+    );
+  }
+
   Future<void> _cancelCall(String? callId, int? callN1, int? callN2) async {
-    // 1. Verificações de segurança
     if (callId == null || _currentUser == null || _currentUser!.token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -152,7 +247,6 @@ class CallsScreenState extends State<CallsScreen> {
       return;
     }
 
-    // 2. Diálogo de Confirmação
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -179,10 +273,7 @@ class CallsScreenState extends State<CallsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 3. Rota PATCH: http://localhost:3001/api/chamado/{id}/status
       final url = Uri.parse('${AppConfig.baseUrl}/api/chamado/$callId/status');
-
-      debugPrint('🚀 Enviando PATCH para: $url');
 
       final response = await http
           .patch(
@@ -191,19 +282,12 @@ class CallsScreenState extends State<CallsScreen> {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${_currentUser!.token}',
             },
-            body: jsonEncode({
-              'ChamadoStatus':
-                  'CANCELADO', // O campo que a sua API validou como obrigatório
-            }),
+            body: jsonEncode({'ChamadoStatus': 'CANCELADO'}),
           )
           .timeout(const Duration(seconds: 10));
 
-      debugPrint('📡 Status Code: ${response.statusCode}');
-      debugPrint('📄 Resposta: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 204) {
         if (!mounted) return;
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Chamado #$callN1-$callN2 cancelado com sucesso!'),
@@ -211,14 +295,10 @@ class CallsScreenState extends State<CallsScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-
-        await loadCalls(); // Recarrega a lista para atualizar os status na tela
+        await loadCalls();
       } else {
-        // Trata o erro 403 ou 400 que a API enviar
         final data = jsonDecode(response.body);
-        final msg =
-            data['error'] ?? data['message'] ?? 'Erro ${response.statusCode}';
-
+        final msg = data['error'] ?? data['message'] ?? 'Erro ${response.statusCode}';
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -243,7 +323,6 @@ class CallsScreenState extends State<CallsScreen> {
   }
 
   Future<void> _editCall(CallModel call) async {
-    // 1. Validação de Regra de Negócio Local
     final status = call.status.toUpperCase();
     if (status != 'PENDENTE' && status != 'FALTAINFORMACAO') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -265,11 +344,9 @@ class CallsScreenState extends State<CallsScreen> {
       text: call.diasproblema?.toString() ?? '0',
     );
 
-    // 2. Abre Modal de Edição
     final dynamic result = await showDialog(
       context: context,
       builder: (context) {
-        // Usar os controllers já definidos fora
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -316,8 +393,7 @@ class CallsScreenState extends State<CallsScreen> {
                           final int? days = int.tryParse(value);
                           if (days != null && days < 0) {
                             diasController.text = '0';
-                            diasController
-                                .selection = TextSelection.fromPosition(
+                            diasController.selection = TextSelection.fromPosition(
                               TextPosition(offset: diasController.text.length),
                             );
                           }
@@ -346,7 +422,6 @@ class CallsScreenState extends State<CallsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    // Validar se os campos estão preenchidos
                     if (editController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -357,7 +432,6 @@ class CallsScreenState extends State<CallsScreen> {
                       return;
                     }
 
-                    // Validar dias
                     final int? dias = int.tryParse(diasController.text.trim());
                     if (dias == null || dias < 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -372,7 +446,6 @@ class CallsScreenState extends State<CallsScreen> {
                     }
 
                     if (Navigator.canPop(context)) {
-                      // Retorna um Map com os dados
                       Navigator.pop(context, {
                         'descricao': editController.text.trim(),
                         'dias': dias,
@@ -396,17 +469,13 @@ class CallsScreenState extends State<CallsScreen> {
       },
     );
 
-    // Processar o resultado corretamente
     if (result is Map<String, dynamic> && result['confirmado'] == true) {
       final String novaDescricao = result['descricao'];
       final int novosDias = result['dias'];
-
-      // Chamar a função para atualizar
       await _atualizarChamado(call, novaDescricao, novosDias);
     }
   }
 
-  // Função separada para atualizar o chamado
   Future<void> _atualizarChamado(
     CallModel call,
     String descricao,
@@ -415,13 +484,7 @@ class CallsScreenState extends State<CallsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 3. Rota PUT: http://localhost:3001/api/chamado/{id}
       final url = Uri.parse('${AppConfig.baseUrl}/api/chamado/${call.id}');
-
-      debugPrint('📝 Editando chamado #${call.id}');
-      debugPrint(
-        '📦 Dados enviados: ${jsonEncode({'ChamadoDescricaoInicial': descricao, 'ChamadoDiasComProblema': dias})}',
-      );
 
       final response = await http
           .put(
@@ -447,7 +510,7 @@ class CallsScreenState extends State<CallsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        await loadCalls(); // Atualiza a lista
+        await loadCalls();
       } else {
         final data = jsonDecode(response.body);
         throw data['error'] ?? data['message'] ?? 'Erro ${response.statusCode}';
@@ -462,28 +525,6 @@ class CallsScreenState extends State<CallsScreen> {
     }
   }
 
-  // Métodos auxiliares de SnackBar simplificados para evitar erros de referência
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$msg'),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showSuccess(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$msg'),
-        backgroundColor: Colors.green[700],
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // Função auxiliar para exibir as notificações (SnackBars)
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -514,26 +555,24 @@ class CallsScreenState extends State<CallsScreen> {
         backgroundColor: Colors.transparent,
       ),
       body: Column(
-        // Adicionado Column para separar a barra da lista
         children: [
-          _buildFilterBar(cs), // Adicionada a barra de filtros no topo
+          _buildFilterBar(cs),
           Expanded(
             child: RefreshIndicator(
               onRefresh: loadCalls,
               color: cs.primary,
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : _filteredCalls
-                        .isEmpty // Usar a lista filtrada aqui
+                  : _filteredCalls.isEmpty
                   ? _buildEmptyState()
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-                      itemCount: _filteredCalls.length, // Usar filtered
+                      itemCount: _filteredCalls.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, index) => _buildCallCard(
                         context,
                         _filteredCalls[index],
-                      ), // Usar filtered
+                      ),
                     ),
             ),
           ),
@@ -564,126 +603,190 @@ class CallsScreenState extends State<CallsScreen> {
   Widget _buildCallCard(BuildContext context, CallModel call) {
     final cs = Theme.of(context).colorScheme;
     final statusColor = _getStatusColor(call.status);
+    final statusLightColor = _getStatusLightColor(call.status);
+    final statusBorderColor = _getStatusBorderColor(call.status);
     final statusUpper = call.status.toUpperCase();
-    final isEditable =
-        statusUpper == 'PENDENTE' || statusUpper == 'FALTAINFORMACAO';
+    final isEditable = statusUpper == 'PENDENTE' || statusUpper == 'FALTAINFORMACAO';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            Container(
-              width: 5,
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(18),
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'ID #${call.n1}-${call.n2}',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        _buildStatusChip(call.status, statusColor),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      call.titulo != null && call.titulo!.isNotEmpty
-                          ? call.titulo!
-                          : call.descricaoInicial,
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (call.titulo != null && call.titulo!.isNotEmpty) ...[
-                      Text(
-                        call.descricaoInicial,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                    if (isEditable) ...[
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _editCall(
-                                call,
-                              ), // Passamos o objeto 'call' inteiro para facilitar
-                              child: _buildBtn(
-                                'Editar',
-                                Icons.edit_outlined,
-                                cs.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                // ESTE É O DEBUG QUE PRECISAMOS VER:
-                                debugPrint('--- DADOS PARA CONFERÊNCIA ---');
-                                debugPrint(
-                                  'ID do Chamado Selecionado: ${call.id}',
-                                );
-                                debugPrint(
-                                  'Status Atual do Chamado: ${call.status}',
-                                );
-                                debugPrint(
-                                  'ID do Dono do Chamado: ${call.pessoaId}',
-                                );
-                                debugPrint(
-                                  'ID do Usuário Logado: ${_currentUser?.id}',
-                                );
-                                debugPrint('-----------------------------');
-
-                                _cancelCall(call.id, call.n1, call.n2);
-                              },
-                              child: _buildBtn(
-                                'Cancelar',
-                                Icons.close,
-                                Colors.red[700]!,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+    return GestureDetector(
+      onTap: () => _navegarParaAtividades(call),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
+          // ✅ Borda com a cor do status
+          border: Border.all(
+            color: statusBorderColor.withOpacity(0.5),
+            width: 1.5,
+          ),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              // ✅ Barra lateral colorida com a cor do status
+              Container(
+                width: 6,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(18),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'ID #${call.n1}-${call.n2}',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11,
+                                  color: statusColor.withOpacity(0.7),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.visibility_outlined,
+                                size: 14,
+                                color: Colors.grey[400],
+                              ),
+                            ],
+                          ),
+                          // ✅ Status Chip com a cor do status
+                          _buildStatusChip(call.status, statusColor, statusLightColor),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // ✅ Título
+                      if (call.titulo != null && call.titulo!.isNotEmpty)
+                        Text(
+                          call.titulo!,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      // ✅ Descrição
+                      Text(
+                        call.descricaoInicial ?? '',
+                        style: GoogleFonts.inter(
+                          fontSize: call.titulo != null && call.titulo!.isNotEmpty ? 12 : 15,
+                          fontWeight: call.titulo != null && call.titulo!.isNotEmpty ? FontWeight.w400 : FontWeight.w600,
+                          color: call.titulo != null && call.titulo!.isNotEmpty ? Colors.grey[600] : cs.onSurface,
+                        ),
+                        maxLines: call.titulo != null && call.titulo!.isNotEmpty ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // ✅ Mensagem de Falta Informação
+                      if (call.status == 'FALTAINFORMACAO' && 
+                          call.descricaoFormatada != null && 
+                          call.descricaoFormatada!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _getStatusLightColor('FALTAINFORMACAO'),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _getStatusColor('FALTAINFORMACAO').withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            'Falta informação no chamado: ${call.descricaoFormatada}',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: _getStatusColor('FALTAINFORMACAO'),
+                            ),
+                          ),
+                        ),
+                      ],
+                      // ✅ Mensagem de Recusa
+                      if (call.status == 'RECUSADO' && 
+                          call.descricaoFormatada != null && 
+                          call.descricaoFormatada!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _getStatusLightColor('RECUSADO'),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _getStatusColor('RECUSADO').withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            'Chamado recusado: ${call.descricaoFormatada}',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: _getStatusColor('RECUSADO'),
+                            ),
+                          ),
+                        ),
+                      ],
+                      // ✅ Botões de Ação
+                      if (isEditable) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => _editCall(call),
+                                child: _buildBtn(
+                                  'Editar',
+                                  Icons.edit_outlined,
+                                  cs.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => _cancelCall(call.id, call.n1, call.n2),
+                                child: _buildBtn(
+                                  'Cancelar',
+                                  Icons.close,
+                                  Colors.red[700]!,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      // ✅ Indicador para ver atividades
+                      if (!isEditable) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'Toque para ver atividades',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: Colors.grey[500],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -695,14 +798,13 @@ class CallsScreenState extends State<CallsScreen> {
       color: cs.surface,
       child: Column(
         children: [
-          // Barra de Pesquisa
           TextField(
             onChanged: (value) {
               _searchQuery = value;
               _applyFilters();
             },
             decoration: InputDecoration(
-              hintText: 'Buscar por título ou ID...',
+              hintText: 'Buscar por título, descrição ou ID...',
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: cs.surfaceContainerHighest.withOpacity(0.3),
@@ -713,15 +815,14 @@ class CallsScreenState extends State<CallsScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          // Filtro de Status (Chips Horizontais)
           SizedBox(
             height: 40,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: _statusOptions.map((status) {
                 final isSelected = _selectedStatus == status;
-                // Pega o nome de exibição ou usa o próprio status se não tiver mapeamento
                 final displayName = _statusDisplayNames[status] ?? status;
+                final statusColor = _getStatusColor(status);
 
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -730,15 +831,16 @@ class CallsScreenState extends State<CallsScreen> {
                       displayName,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isSelected ? Colors.white : cs.onSurface,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected ? Colors.white : statusColor,
                       ),
                     ),
                     selected: isSelected,
-                    selectedColor: cs.primary,
+                    selectedColor: statusColor,
+                    backgroundColor: statusColor.withOpacity(0.1),
                     onSelected: (selected) {
                       setState(() {
-                        _selectedStatus =
-                            status; // Mantém o valor original para o filtro
+                        _selectedStatus = status;
                         _applyFilters();
                       });
                     },
@@ -752,15 +854,16 @@ class CallsScreenState extends State<CallsScreen> {
     );
   }
 
-  Widget _buildStatusChip(String status, Color color) {
+  Widget _buildStatusChip(String status, Color color, Color lightColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: lightColor,
         borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
-        status,
+        _statusDisplayNames[status] ?? status,
         style: GoogleFonts.inter(
           fontSize: 10,
           fontWeight: FontWeight.bold,
@@ -793,18 +896,5 @@ class CallsScreenState extends State<CallsScreen> {
         ],
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'PENDENTE':
-        return Colors.orange[800]!;
-      case 'CONCLUIDO':
-        return Colors.green[700]!;
-      case 'CANCELADO':
-        return Colors.red[700]!;
-      default:
-        return Colors.blue[700]!;
-    }
   }
 }

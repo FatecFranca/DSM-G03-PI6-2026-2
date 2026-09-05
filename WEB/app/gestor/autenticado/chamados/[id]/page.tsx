@@ -33,12 +33,14 @@ import {
   CircleAlert,
   RotateCcw,
   Hammer,
-  CircleCheckBig
+  CircleCheckBig,
+  Info
 } from "lucide-react"
 import { buscarChamadoPorId, alterarStatus, atribuirEquipe, type Chamado } from "@/lib/chamado-service"
 import { listarEquipes, type Equipe } from "@/lib/equipe-service"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { formatarDataBrasil } from '@/utils/dateUtils'
 
 function StatusBadge({ status }: { status: string }) {
   const styles = {
@@ -49,7 +51,8 @@ function StatusBadge({ status }: { status: string }) {
     EMATENDIMENTO: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
     CONCLUIDO: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
     CANCELADO: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400',
-    RECUSADO: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+    RECUSADO: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+    FALTAINFORMACAO: 'bg-pink-100 text-pink-800 dark:bg-pink-900/20 dark:text-pink-400'
   };
 
   const labels = {
@@ -60,7 +63,8 @@ function StatusBadge({ status }: { status: string }) {
     EMATENDIMENTO: 'Em Atendimento',
     CONCLUIDO: 'Concluído',
     CANCELADO: 'Cancelado',
-    RECUSADO: 'Recusado'
+    RECUSADO: 'Recusado',
+    FALTAINFORMACAO: 'Falta Informação'
   };
 
   return (
@@ -97,9 +101,12 @@ export default function DetalhesChamadoPage() {
   const [updating, setUpdating] = useState(false);
   const [showRecusarModal, setShowRecusarModal] = useState(false);
   const [showAtribuirModal, setShowAtribuirModal] = useState(false);
+  const [showFaltaInfoModal, setShowFaltaInfoModal] = useState(false);
   const [motivoRecusa, setMotivoRecusa] = useState("");
+  const [informacoesFaltantes, setInformacoesFaltantes] = useState("");
   const [equipeSelecionada, setEquipeSelecionada] = useState("");
   const [equipes, setEquipes] = useState<Equipe[]>([]);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (params.id) {
@@ -130,9 +137,18 @@ export default function DetalhesChamadoPage() {
   };
 
   const handleStatusChange = async (novoStatus: string) => {
+    // Limpar erros anteriores
+    setModalError(null);
+
     if (novoStatus === 'RECUSADO') {
       setMotivoRecusa("");
       setShowRecusarModal(true);
+      return;
+    }
+
+    if (novoStatus === 'FALTAINFORMACAO') {
+      setInformacoesFaltantes("");
+      setShowFaltaInfoModal(true);
       return;
     }
 
@@ -147,9 +163,11 @@ export default function DetalhesChamadoPage() {
       setUpdating(true);
       await alterarStatus(String(params.id), novoStatus);
       await carregarChamado();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao alterar status:', err);
-      alert('Erro ao alterar status do chamado');
+      const errorMessage = err.message || 'Erro ao alterar status do chamado';
+      setError(errorMessage);
+      alert(errorMessage);
     } finally {
       setUpdating(false);
     }
@@ -157,7 +175,7 @@ export default function DetalhesChamadoPage() {
 
   const confirmarRecusar = async () => {
     if (!motivoRecusa.trim()) {
-      alert('Informe o motivo da recusa');
+      setModalError('Informe o motivo da recusa');
       return;
     }
 
@@ -165,10 +183,35 @@ export default function DetalhesChamadoPage() {
       setUpdating(true);
       await alterarStatus(String(params.id), 'RECUSADO', motivoRecusa.trim());
       setShowRecusarModal(false);
+      setMotivoRecusa("");
+      setModalError(null);
       await carregarChamado();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao recusar chamado:', err);
-      alert('Erro ao recusar chamado');
+      const errorMessage = err.message || 'Erro ao recusar chamado';
+      setModalError(errorMessage);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const confirmarFaltaInfo = async () => {
+    if (!informacoesFaltantes.trim()) {
+      setModalError('Informe quais informações estão faltando');
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      await alterarStatus(String(params.id), 'FALTAINFORMACAO', informacoesFaltantes.trim());
+      setShowFaltaInfoModal(false);
+      setInformacoesFaltantes("");
+      setModalError(null);
+      await carregarChamado();
+    } catch (err: any) {
+      console.error('Erro ao reportar falta de informação:', err);
+      const errorMessage = err.message || 'Erro ao reportar falta de informação';
+      setModalError(errorMessage);
     } finally {
       setUpdating(false);
     }
@@ -176,7 +219,7 @@ export default function DetalhesChamadoPage() {
 
   const confirmarAtribuir = async () => {
     if (!equipeSelecionada) {
-      alert('Selecione uma equipe');
+      setModalError('Selecione uma equipe');
       return;
     }
 
@@ -184,18 +227,16 @@ export default function DetalhesChamadoPage() {
       setUpdating(true);
       await atribuirEquipe(String(params.id), equipeSelecionada);
       setShowAtribuirModal(false);
+      setEquipeSelecionada("");
+      setModalError(null);
       await carregarChamado();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao atribuir equipe:', err);
-      alert('Erro ao atribuir equipe ao chamado');
+      const errorMessage = err.message || 'Erro ao atribuir equipe ao chamado';
+      setModalError(errorMessage);
     } finally {
       setUpdating(false);
     }
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return format(new Date(dateString), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   };
 
   if (isLoading) {
@@ -231,6 +272,9 @@ export default function DetalhesChamadoPage() {
     { value: 'RECUSADO', label: 'Recusado', icon: ShieldBan }
   ];
 
+  // Verificar se o status atual é final
+  const isFinalStatus = ['CONCLUIDO', 'CANCELADO', 'RECUSADO'].includes(chamado.ChamadoStatus);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -252,6 +296,7 @@ export default function DetalhesChamadoPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {chamado.ChamadoStatus !== 'FALTAINFORMACAO' && chamado.ChamadoStatus !== 'ATRIBUIDO' && chamado.ChamadoStatus !== 'EMATENDIMENTO' && chamado.ChamadoStatus !== 'CONCLUIDO' && chamado.ChamadoStatus !== 'CANCELADO' && chamado.ChamadoStatus !== 'RECUSADO' && (
           <button
             onClick={() => router.push(`/gestor/autenticado/chamados/${chamado.ChamadoId}/editar`)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -259,8 +304,16 @@ export default function DetalhesChamadoPage() {
             <Edit size={18} />
             <span>Editar</span>
           </button>
+          )}
         </div>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
 
       {/* Status e Urgência */}
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
@@ -270,6 +323,11 @@ export default function DetalhesChamadoPage() {
           {chamado.ChamadoPrioridade && (
             <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">
               Prioridade: {chamado.ChamadoPrioridade}/10
+            </span>
+          )}
+          {isFinalStatus && (
+            <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">
+              <span className="text-red-600 dark:text-red-400">⚠️ Chamado finalizado</span>
             </span>
           )}
         </div>
@@ -340,18 +398,18 @@ export default function DetalhesChamadoPage() {
             <div>
               <p className="text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Abertura: </span>
-                <span className="text-gray-900 dark:text-gray-100">{formatDate(chamado.ChamadoDtAbertura)}</span>
+                <span className="text-gray-900 dark:text-gray-100">{formatarDataBrasil(chamado.ChamadoDtAbertura)}</span>
               </p>
               {chamado.ChamadoDtPlanejada && (
                 <p className="text-sm mt-1">
                   <span className="text-gray-500 dark:text-gray-400">Data Planejada para Encerramento: </span>
-                  <span className="text-gray-900 dark:text-gray-100">{formatDate(chamado.ChamadoDtPlanejada)}</span>
+                  <span className="text-gray-900 dark:text-gray-100">{formatarDataBrasil(chamado.ChamadoDtPlanejada)}</span>
                 </p>
               )}
               {chamado.ChamadoDtEncerramento && (
                 <p className="text-sm mt-1">
                   <span className="text-gray-500 dark:text-gray-400">Encerramento: </span>
-                  <span className="text-gray-900 dark:text-gray-100">{formatDate(chamado.ChamadoDtEncerramento)}</span>
+                  <span className="text-gray-900 dark:text-gray-100">{formatarDataBrasil(chamado.ChamadoDtEncerramento)}</span>
                 </p>
               )}
             </div>
@@ -373,7 +431,7 @@ export default function DetalhesChamadoPage() {
       )}
 
       {/* Descrição Formatada */}
-      {chamado.ChamadoDescricaoFormatada && chamado.ChamadoStatus !== 'RECUSADO' && (
+      {chamado.ChamadoDescricaoFormatada && chamado.ChamadoStatus !== 'RECUSADO' && chamado.ChamadoStatus !== 'FALTAINFORMACAO' && (
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-4">
             <FileSpreadsheet size={16} />
@@ -398,56 +456,110 @@ export default function DetalhesChamadoPage() {
         </div>
       )}
 
-      {/* Ações do Gestor */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
-          <Tag size={16} />
-          Alterar Status
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
-          {statusOptions.map((option) => {
-            const Icon = option.icon;
-            const isCurrent = chamado.ChamadoStatus === option.value;
-            const isDisabled =
-              (chamado.ChamadoStatus === 'CONCLUIDO' && option.value !== 'CONCLUIDO') || 
-              (chamado.ChamadoStatus === 'CANCELADO' && option.value !== 'CANCELADO') || 
-              (chamado.ChamadoStatus === 'RECUSADO' && option.value !== 'RECUSADO') || 
-              (chamado.ChamadoStatus !== 'EMATENDIMENTO' && option.value === 'EMATENDIMENTO') || 
-              (chamado.ChamadoStatus === 'PENDENTE' && (option.value === 'ATRIBUIDO' || option.value === 'EMATENDIMENTO' || option.value === 'CONCLUIDO')) || 
-              (chamado.ChamadoStatus === 'ANALISADO' && (option.value === 'EMATENDIMENTO' || option.value === 'CONCLUIDO')) || 
-              (chamado.ChamadoStatus === 'FALTAINFORMACAO' && option.value === 'ATRIBUIDO') || 
-              (chamado.ChamadoStatus === 'FALTAINFORMACAO' && option.value === 'CONCLUIDO') || 
-              (chamado.ChamadoStatus === 'ATRIBUIDO' && option.value === 'FALTAINFORMACAO') || 
-              (chamado.ChamadoStatus === 'ATRIBUIDO' && option.value === 'RECUSADO') || 
-              (chamado.ChamadoStatus === 'ATRIBUIDO' && option.value === 'PENDENTE') || 
-              (chamado.ChamadoStatus === 'ATRIBUIDO' && option.value === 'CONCLUIDO') || 
-              (chamado.ChamadoStatus !== 'PROCESSAMENTO' && option.value === 'PROCESSAMENTO') || 
-              (chamado.ChamadoStatus === 'EMATENDIMENTO' && (option.value !== 'ANALISADO' && option.value !== 'CONCLUIDO'));
-
-            return (
-              <button
-                key={option.value}
-                onClick={() => handleStatusChange(option.value)}
-                disabled={isDisabled || isCurrent || updating}
-                className={`p-4 rounded-lg border transition-all ${isCurrent
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : isDisabled
-                    ? 'border-gray-200 dark:border-gray-800 opacity-50 cursor-not-allowed'
-                    : 'border-gray-200 dark:border-gray-800 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/10'
-                  }`}
-              >
-                <Icon size={20} className={`mx-auto mb-2 ${isCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'
-                  }`} />
-                <p className={`text-sm font-medium ${isCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
-                  }`}>
-                  {option.label}
-                </p>
-              </button>
-            );
-          })}
+      {/* Falta Informação */}
+      {chamado.ChamadoDescricaoFormatada && chamado.ChamadoStatus === 'FALTAINFORMACAO' && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-4">
+            <CircleAlert size={16} />
+            Informações Faltantes do Chamado
+          </h3>
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            {chamado.ChamadoDescricaoFormatada}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Ações do Gestor */}
+      {!isFinalStatus && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+            <Tag size={16} />
+            Alterar Status
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {statusOptions.map((option) => {
+              const Icon = option.icon;
+              const isCurrent = chamado.ChamadoStatus === option.value;
+              
+              // Verificar se o status está disponível
+              let isDisabled = isCurrent || updating;
+              
+              // Se for final, desabilitar todos
+              if (isFinalStatus) {
+                isDisabled = true;
+              }
+              
+              // REGRAS DE TRANSIÇÃO DE STATUS
+              // Se for FALTAINFORMACAO, só permite PENDENTE, ANALISADO, PROCESSAMENTO, RECUSADO, CANCELADO
+              if (chamado.ChamadoStatus === 'FALTAINFORMACAO') {
+                isDisabled = !['PENDENTE', 'ANALISADO', 'RECUSADO', 'CANCELADO'].includes(option.value);
+              }
+              
+              // Se for PENDENTE, pode ir para ANALISADO, CANCELADO, FALTAINFORMACAO, RECUSADO
+              if (chamado.ChamadoStatus === 'PENDENTE') {
+                isDisabled = !['ANALISADO', 'CANCELADO', 'FALTAINFORMACAO', 'RECUSADO'].includes(option.value);
+              }
+              
+              // Se for PROCESSAMENTO, pode ir para PENDENTE, ANALISADO, CANCELADO, FALTAINFORMACAO, RECUSADO
+              if (chamado.ChamadoStatus === 'PROCESSAMENTO') {
+                isDisabled = !['PENDENTE', 'ANALISADO', 'CANCELADO', 'FALTAINFORMACAO', 'RECUSADO'].includes(option.value);
+              }
+              
+              // Se for ANALISADO, pode ir para ATRIBUIDO, PENDENTE, RECUSADO, FALTAINFORMACAO
+              if (chamado.ChamadoStatus === 'ANALISADO') {
+                isDisabled = !['ATRIBUIDO', 'PENDENTE', 'RECUSADO', 'FALTAINFORMACAO'].includes(option.value);
+              }
+              
+              // Se for ATRIBUIDO, pode ir para EMATENDIMENTO, ANALISADO
+              if (chamado.ChamadoStatus === 'ATRIBUIDO') {
+                isDisabled = !['EMATENDIMENTO', 'ANALISADO'].includes(option.value);
+              }
+              
+              // Se for EMATENDIMENTO, pode ir para CONCLUIDO, ANALISADO
+              if (chamado.ChamadoStatus === 'EMATENDIMENTO') {
+                isDisabled = !['CONCLUIDO', 'ANALISADO'].includes(option.value);
+              }
+              
+              // Se for CONCLUIDO, não permite mais alterações
+              if (chamado.ChamadoStatus === 'CONCLUIDO') {
+                isDisabled = true;
+              }
+              
+              // Se for CANCELADO, não permite mais alterações
+              if (chamado.ChamadoStatus === 'CANCELADO') {
+                isDisabled = true;
+              }
+              
+              // Se for RECUSADO, não permite mais alterações
+              if (chamado.ChamadoStatus === 'RECUSADO') {
+                isDisabled = true;
+              }
+
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => handleStatusChange(option.value)}
+                  disabled={isDisabled}
+                  className={`p-4 rounded-lg border transition-all ${isCurrent
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : isDisabled
+                      ? 'border-gray-200 dark:border-gray-800 opacity-50 cursor-not-allowed'
+                      : 'border-gray-200 dark:border-gray-800 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/10'
+                    }`}
+                >
+                  <Icon size={20} className={`mx-auto mb-2 ${isCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'
+                    }`} />
+                  <p className={`text-sm font-medium ${isCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                    {option.label}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Atividades */}
       {chamado.AtividadeChamado && chamado.AtividadeChamado.length > 0 && (
@@ -471,7 +583,7 @@ export default function DetalhesChamadoPage() {
                       {atividade.Tecnico?.TecnicoNome || 'Sistema'}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-500">
-                      {formatDate(atividade.AtividadeDtRealizacao)}
+                      {formatarDataBrasil(atividade.AtividadeDtRealizacao)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -489,38 +601,140 @@ export default function DetalhesChamadoPage() {
         </div>
       )}
 
+      {/* ============================================= */}
+      {/* MODAL FALTA INFORMAÇÃO */}
+      {/* ============================================= */}
+      {showFaltaInfoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <CircleAlert size={20} className="text-red-600" />
+                Informações Faltantes
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowFaltaInfoModal(false);
+                  setModalError(null);
+                }} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Informe quais dados estão faltando para que o solicitante possa complementar.
+            </p>
+            
+            {modalError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-600 dark:text-red-400">{modalError}</p>
+              </div>
+            )}
+            
+            <textarea
+              value={informacoesFaltantes}
+              onChange={(e) => {
+                setInformacoesFaltantes(e.target.value);
+                setModalError(null);
+              }}
+              placeholder="Ex: Descreva com mais detalhes o problema, informe a localização exata..."
+              className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-h-[120px] focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none"
+            />
+            
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => {
+                  setShowFaltaInfoModal(false);
+                  setModalError(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarFaltaInfo}
+                disabled={updating}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {updating ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  'Confirmar'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Recusar */}
       {showRecusarModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <ShieldBan size={20} className="text-red-600" />
                 Motivo da Recusa
               </h3>
-              <button onClick={() => setShowRecusarModal(false)} className="text-gray-500 hover:text-gray-700">
+              <button 
+                onClick={() => {
+                  setShowRecusarModal(false);
+                  setModalError(null);
+                }} 
+                className="text-gray-500 hover:text-gray-700"
+              >
                 <X size={20} />
               </button>
             </div>
-            <p>Essa ação não poderá ser desfeita</p>
-            <br />
+            
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Essa ação não poderá ser desfeita.
+            </p>
+            
+            {modalError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-600 dark:text-red-400">{modalError}</p>
+              </div>
+            )}
+            
             <textarea
               value={motivoRecusa}
-              onChange={(e) => setMotivoRecusa(e.target.value)}
+              onChange={(e) => {
+                setMotivoRecusa(e.target.value);
+                setModalError(null);
+              }}
               placeholder="Digite o motivo da recusa..."
-              className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-h-[100px]"
+              className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 min-h-[100px] focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
             />
+            
             <div className="flex gap-3 mt-4">
               <button
-                onClick={() => setShowRecusarModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                onClick={() => {
+                  setShowRecusarModal(false);
+                  setModalError(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmarRecusar}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+                disabled={updating}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Confirmar Recusa
+                {updating ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Confirmando...
+                  </>
+                ) : (
+                  'Confirmar Recusa'
+                )}
               </button>
             </div>
           </div>
@@ -532,17 +746,34 @@ export default function DetalhesChamadoPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Users size={20} className="text-blue-600" />
                 Atribuir Equipe
               </h3>
-              <button onClick={() => setShowAtribuirModal(false)} className="text-gray-500 hover:text-gray-700">
+              <button 
+                onClick={() => {
+                  setShowAtribuirModal(false);
+                  setModalError(null);
+                }} 
+                className="text-gray-500 hover:text-gray-700"
+              >
                 <X size={20} />
               </button>
             </div>
+            
+            {modalError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-600 dark:text-red-400">{modalError}</p>
+              </div>
+            )}
+            
             <select
               value={equipeSelecionada}
-              onChange={(e) => setEquipeSelecionada(e.target.value)}
-              className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              onChange={(e) => {
+                setEquipeSelecionada(e.target.value);
+                setModalError(null);
+              }}
+              className="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             >
               <option value="">Selecione uma equipe</option>
               {equipes.map((equipe) => (
@@ -551,18 +782,30 @@ export default function DetalhesChamadoPage() {
                 </option>
               ))}
             </select>
+            
             <div className="flex gap-3 mt-4">
               <button
-                onClick={() => setShowAtribuirModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                onClick={() => {
+                  setShowAtribuirModal(false);
+                  setModalError(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmarAtribuir}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                disabled={updating}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Confirmar Atribuição
+                {updating ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Atribuindo...
+                  </>
+                ) : (
+                  'Confirmar Atribuição'
+                )}
               </button>
             </div>
           </div>

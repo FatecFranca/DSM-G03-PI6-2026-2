@@ -221,9 +221,9 @@ class UnidadeController {
             const skip = (paginaAtual - 1) * limitePorPagina;
 
             // Buscar unidades
-            let unidades;
-            let total;
             const usuarioLogado = req.usuario;
+            console.log('usuarioLogado = ', usuarioLogado);
+            console.log('usuarioLogado = ', usuarioLogado);
             if (usuarioLogado) {
                 if (usuarioLogado.usuarioTipo === 'ADMINISTRADOR') {
                     const [unidades, total] = await prisma.$transaction([
