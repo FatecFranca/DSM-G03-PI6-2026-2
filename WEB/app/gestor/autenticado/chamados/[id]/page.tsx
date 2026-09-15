@@ -34,10 +34,12 @@ import {
   RotateCcw,
   Hammer,
   CircleCheckBig,
-  Info
+  Info,
+  History
 } from "lucide-react"
 import { buscarChamadoPorId, alterarStatus, atribuirEquipe, type Chamado } from "@/lib/chamado-service"
 import { listarEquipes, type Equipe } from "@/lib/equipe-service"
+import { listarHistoricoChamado, type HistoricoChamado } from "@/lib/historico-service"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { formatarDataBrasil } from '@/utils/dateUtils'
@@ -96,7 +98,9 @@ export default function DetalhesChamadoPage() {
   const params = useParams();
   const router = useRouter();
   const [chamado, setChamado] = useState<Chamado | null>(null);
+  const [historico, setHistorico] = useState<HistoricoChamado[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingHistorico, setIsLoadingHistorico] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [showRecusarModal, setShowRecusarModal] = useState(false);
@@ -111,6 +115,7 @@ export default function DetalhesChamadoPage() {
   useEffect(() => {
     if (params.id) {
       carregarChamado();
+      carregarHistorico();
     }
   }, [params.id]);
 
@@ -127,6 +132,18 @@ export default function DetalhesChamadoPage() {
     }
   };
 
+  const carregarHistorico = async () => {
+    try {
+      setIsLoadingHistorico(true);
+      const data = await listarHistoricoChamado(String(params.id));
+      setHistorico(data);
+    } catch (err) {
+      console.error('Erro ao carregar histórico:', err);
+    } finally {
+      setIsLoadingHistorico(false);
+    }
+  };
+
   const carregarEquipes = async () => {
     try {
       const response = await listarEquipes({ status: 'ATIVA' });
@@ -137,7 +154,6 @@ export default function DetalhesChamadoPage() {
   };
 
   const handleStatusChange = async (novoStatus: string) => {
-    // Limpar erros anteriores
     setModalError(null);
 
     if (novoStatus === 'RECUSADO') {
@@ -163,6 +179,7 @@ export default function DetalhesChamadoPage() {
       setUpdating(true);
       await alterarStatus(String(params.id), novoStatus);
       await carregarChamado();
+      await carregarHistorico();
     } catch (err: any) {
       console.error('Erro ao alterar status:', err);
       const errorMessage = err.message || 'Erro ao alterar status do chamado';
@@ -186,6 +203,7 @@ export default function DetalhesChamadoPage() {
       setMotivoRecusa("");
       setModalError(null);
       await carregarChamado();
+      await carregarHistorico();
     } catch (err: any) {
       console.error('Erro ao recusar chamado:', err);
       const errorMessage = err.message || 'Erro ao recusar chamado';
@@ -208,6 +226,7 @@ export default function DetalhesChamadoPage() {
       setInformacoesFaltantes("");
       setModalError(null);
       await carregarChamado();
+      await carregarHistorico();
     } catch (err: any) {
       console.error('Erro ao reportar falta de informação:', err);
       const errorMessage = err.message || 'Erro ao reportar falta de informação';
@@ -230,6 +249,7 @@ export default function DetalhesChamadoPage() {
       setEquipeSelecionada("");
       setModalError(null);
       await carregarChamado();
+      await carregarHistorico();
     } catch (err: any) {
       console.error('Erro ao atribuir equipe:', err);
       const errorMessage = err.message || 'Erro ao atribuir equipe ao chamado';
@@ -272,8 +292,26 @@ export default function DetalhesChamadoPage() {
     { value: 'RECUSADO', label: 'Recusado', icon: ShieldBan }
   ];
 
-  // Verificar se o status atual é final
   const isFinalStatus = ['CONCLUIDO', 'CANCELADO', 'RECUSADO'].includes(chamado.ChamadoStatus);
+
+  const getHistoricoIcon = (acao: string) => {
+    switch (acao) {
+      case 'CRIACAO':
+        return <Ticket size={16} className="text-green-500" />;
+      case 'ATUALIZACAO':
+        return <Edit size={16} className="text-blue-500" />;
+      case 'MUDANCA_STATUS':
+        return <RefreshCw size={16} className="text-purple-500" />;
+      case 'ATRIBUICAO':
+        return <Users size={16} className="text-indigo-500" />;
+      case 'RECUSA':
+        return <ShieldBan size={16} className="text-red-500" />;
+      case 'CONCLUSAO':
+        return <CheckCircle size={16} className="text-green-500" />;
+      default:
+        return <Info size={16} className="text-gray-500" />;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -323,11 +361,6 @@ export default function DetalhesChamadoPage() {
           {chamado.ChamadoPrioridade && (
             <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">
               Prioridade: {chamado.ChamadoPrioridade}/10
-            </span>
-          )}
-          {isFinalStatus && (
-            <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">
-              <span className="text-red-600 dark:text-red-400">⚠️ Chamado finalizado</span>
             </span>
           )}
         </div>
@@ -482,57 +515,39 @@ export default function DetalhesChamadoPage() {
               const Icon = option.icon;
               const isCurrent = chamado.ChamadoStatus === option.value;
               
-              // Verificar se o status está disponível
               let isDisabled = isCurrent || updating;
               
-              // Se for final, desabilitar todos
               if (isFinalStatus) {
                 isDisabled = true;
               }
               
-              // REGRAS DE TRANSIÇÃO DE STATUS
-              // Se for FALTAINFORMACAO, só permite PENDENTE, ANALISADO, PROCESSAMENTO, RECUSADO, CANCELADO
               if (chamado.ChamadoStatus === 'FALTAINFORMACAO') {
                 isDisabled = !['PENDENTE', 'ANALISADO', 'RECUSADO', 'CANCELADO'].includes(option.value);
               }
               
-              // Se for PENDENTE, pode ir para ANALISADO, CANCELADO, FALTAINFORMACAO, RECUSADO
               if (chamado.ChamadoStatus === 'PENDENTE') {
                 isDisabled = !['ANALISADO', 'CANCELADO', 'FALTAINFORMACAO', 'RECUSADO'].includes(option.value);
               }
               
-              // Se for PROCESSAMENTO, pode ir para PENDENTE, ANALISADO, CANCELADO, FALTAINFORMACAO, RECUSADO
               if (chamado.ChamadoStatus === 'PROCESSAMENTO') {
                 isDisabled = !['PENDENTE', 'ANALISADO', 'CANCELADO', 'FALTAINFORMACAO', 'RECUSADO'].includes(option.value);
               }
               
-              // Se for ANALISADO, pode ir para ATRIBUIDO, PENDENTE, RECUSADO, FALTAINFORMACAO
               if (chamado.ChamadoStatus === 'ANALISADO') {
                 isDisabled = !['ATRIBUIDO', 'PENDENTE', 'RECUSADO', 'FALTAINFORMACAO'].includes(option.value);
               }
               
-              // Se for ATRIBUIDO, pode ir para EMATENDIMENTO, ANALISADO
               if (chamado.ChamadoStatus === 'ATRIBUIDO') {
-                isDisabled = !['EMATENDIMENTO', 'ANALISADO'].includes(option.value);
+                isDisabled = !['ANALISADO'].includes(option.value);
               }
               
-              // Se for EMATENDIMENTO, pode ir para CONCLUIDO, ANALISADO
               if (chamado.ChamadoStatus === 'EMATENDIMENTO') {
                 isDisabled = !['CONCLUIDO', 'ANALISADO'].includes(option.value);
               }
               
-              // Se for CONCLUIDO, não permite mais alterações
-              if (chamado.ChamadoStatus === 'CONCLUIDO') {
-                isDisabled = true;
-              }
-              
-              // Se for CANCELADO, não permite mais alterações
-              if (chamado.ChamadoStatus === 'CANCELADO') {
-                isDisabled = true;
-              }
-              
-              // Se for RECUSADO, não permite mais alterações
-              if (chamado.ChamadoStatus === 'RECUSADO') {
+              if (chamado.ChamadoStatus === 'CONCLUIDO' || 
+                  chamado.ChamadoStatus === 'CANCELADO' || 
+                  chamado.ChamadoStatus === 'RECUSADO') {
                 isDisabled = true;
               }
 
@@ -561,12 +576,65 @@ export default function DetalhesChamadoPage() {
         </div>
       )}
 
-      {/* Atividades */}
+      {/* ============================================= */}
+      {/* HISTÓRICO DE AÇÕES (NOVO) */}
+      {/* ============================================= */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+          <History size={16} />
+          Histórico de Ações
+        </h3>
+
+        {isLoadingHistorico ? (
+          <div className="flex justify-center py-8">
+            <RefreshCw size={24} className="animate-spin text-gray-400" />
+          </div>
+        ) : historico.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+            Nenhuma ação registrada neste chamado.
+          </p>
+        ) : (
+          <div className="space-y-4 max-h-80 overflow-y-auto">
+            {historico.map((item, index) => {
+              const isLast = index === historico.length - 1;
+              return (
+                <div key={item.HistChamadoId} className="flex gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                      {getHistoricoIcon(item.HistChamadoAcao)}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {item.HistChamadoUsuario || 'Sistema'}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-500">
+                        {formatarDataBrasil(item.HistChamadoDt)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {item.HistChamadoDescricao}
+                    </p>
+                  </div>
+                  {!isLast && (
+                    <div className="absolute left-0 w-0.5 h-full bg-gray-200 dark:bg-gray-700" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ============================================= */}
+      {/* ATIVIDADES (EXISTENTE) */}
+      {/* ============================================= */}
       {chamado.AtividadeChamado && chamado.AtividadeChamado.length > 0 && (
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
             <MessageSquare size={16} />
-            Histórico de Atividades
+            Atividades do Chamado
           </h3>
 
           <div className="space-y-4">
@@ -601,9 +669,7 @@ export default function DetalhesChamadoPage() {
         </div>
       )}
 
-      {/* ============================================= */}
-      {/* MODAL FALTA INFORMAÇÃO */}
-      {/* ============================================= */}
+      {/* Modais */}
       {showFaltaInfoModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
@@ -672,7 +738,6 @@ export default function DetalhesChamadoPage() {
         </div>
       )}
 
-      {/* Modal Recusar */}
       {showRecusarModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">
@@ -741,7 +806,6 @@ export default function DetalhesChamadoPage() {
         </div>
       )}
 
-      {/* Modal Atribuir Equipe */}
       {showAtribuirModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4">

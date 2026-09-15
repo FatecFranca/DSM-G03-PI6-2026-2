@@ -466,7 +466,7 @@ router.post('/:equipeId/tecnicos', equipeController.adicionarTecnicoEquipe);
  *       404:
  *         description: Vínculo não encontrado
  */
-router.put('/vinculos/:vinculoId', equipeController.alterarTecnicoEquipe);
+router.put('/vinculos/:vinculoId', equipeController.alterarStatusTecnicoEquipe);
 
 /**
  * @openapi

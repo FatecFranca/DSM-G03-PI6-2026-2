@@ -1,0 +1,17 @@
+{
+  "watch": ["src/workers", "src/services", "src/config"],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules",
+    "src/server.js",
+    "src/controllers",
+    "src/routes",
+    "src/middlewares",
+    "src/ia",
+    "*.log",
+    "prisma/migrations",
+    "src/**/*.test.js"
+  ],
+  "delay": "2000",
+  "verbose": true
+}

@@ -1,50 +1,12 @@
 // src/controllers/chamadoController.js
 const prisma = require('../prisma.js');
 
-const pool = require('../services/classificador');
+//const pool = require('../services/classificador');
 
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { gravarLog } = require('../utils/logGrava.js');
 
-// Método separado para classificação em background
-async function processarClassificacaoEmBackground(chamadoId, dadosClassificacao) {
-    console.log(`[${new Date().toISOString()}] 🚀 Iniciando classificação para chamado ${chamadoId}...`);
-    console.log('Dados recebidos:', dadosClassificacao);
-
-    try {
-        // Classificar usando o pool (retorna apenas { urgencia: '...' })
-        const classificacao = await pool.classificar(dadosClassificacao);
-
-        console.log(`✅ Classificação obtida para chamado ${chamadoId}:`, classificacao);
-
-        // Atualizar SOMENTE os campos ChamadoUrgencia e ChamadoStatus
-        const chamadoAntes = await prisma.chamado.findUnique({
-            where: { ChamadoId: chamadoId },
-            select: {
-                ChamadoStatus: true
-            }
-        });
-
-        if (chamadoAntes) {
-            let chamadoStatus = 'PENDENTE'
-            if (chamadoAntes.ChamadoStatus !== 'FALTAINFORMACAO' && chamadoAntes.ChamadoStatus !== 'PROCESSAMENTO') {
-                chamadoStatus = chamadoAntes.ChamadoStatus
-            }
-            await prisma.chamado.update({
-                where: { ChamadoId: chamadoId },
-                data: {
-                    ChamadoUrgencia: classificacao.urgencia,
-                    ChamadoStatus: chamadoStatus
-                }
-            });
-        }
-
-        console.log(`✅ Chamado ${chamadoId} atualizado com sucesso! Urgência: ${classificacao.urgencia}`);
-
-    } catch (error) {
-        console.error(`❌ Erro ao classificar chamado ${chamadoId}:`, error);
-    }
-}
-
+const { processarClassificacaoEmBackground } = require('../services/classificadorService');
 
 class ChamadoController {
 
@@ -53,11 +15,11 @@ class ChamadoController {
         try {
             const {
                 ChamadoDescricaoInicial,
-                ChamadoDiasComProblema,
-                ChamadoRiscoVidaHumana,
-                ChamadoRiscoVidaAnimal,
-                ChamadoBloqueioVia,
-                TipSupId
+                ChamadoDiasComProblema
+                //ChamadoRiscoVidaHumana,
+                //ChamadoRiscoVidaAnimal,
+                //ChamadoBloqueioVia,
+                //TipSupId
             } = req.body;
             const usuarioLogado = req.usuario;
 
@@ -65,10 +27,15 @@ class ChamadoController {
                 return res.status(400).json({ error: 'Descrição inicial do chamado é obrigatória' });
             }
 
-            if (!ChamadoDiasComProblema || isNaN(parseInt(ChamadoDiasComProblema)) || parseInt(ChamadoDiasComProblema) < 1) {
+            // Aceita 0 dias com problema 20260913
+            console.log('ChamadoDiasComProblema = ', ChamadoDiasComProblema);
+            if (isNaN(parseInt(ChamadoDiasComProblema)) || parseInt(ChamadoDiasComProblema) < 0) {
+                console.log('Aqui');
                 return res.status(400).json({ error: 'Dias com problemas deve ser maior ou igual a um' });
             }
 
+            // Não mais necessário informa os dados, PLN detectará
+            /*
             if (!TipSupId || isNaN(parseInt(TipSupId)) || parseInt(TipSupId) <= 0) {
                 return res.status(400).json({ error: 'Tipo de suporte é obrigatório' });
             }
@@ -84,6 +51,7 @@ class ChamadoController {
             if (ChamadoBloqueioVia === undefined || typeof ChamadoBloqueioVia !== 'boolean') {
                 return res.status(400).json({ error: 'Via bloqueada é obrigatório' });
             }
+            */
 
             // Verificar se o usuário é PESSOA
             if (usuarioLogado.usuarioTipo !== 'PESSOA') {
@@ -163,15 +131,17 @@ class ChamadoController {
                 }
             }
 
-            console.log(`Próximo número: ${proximoN1} - ${proximoN2}`);
+            //console.log(`Próximo número: ${proximoN1} - ${proximoN2}`);
 
             // Verificar se o tipo de suporte existe e tem vinculo com a unidade
+            /*
             const tipoSuporte = await prisma.tipoSuporte.findFirst({
                 where: {
                     TipSupId: parseInt(TipSupId),
                     TipSupStatus: 'ATIVO'
                 }
             });
+            
 
             if (!tipoSuporte) {
                 return res.status(404).json({
@@ -192,6 +162,7 @@ class ChamadoController {
                     error: 'Tipo de suporte não tem vinculo com a unidade ou está inativo'
                 });
             }
+            */
 
             //console.log('Body = ', req.body);
             //console.log('UnidadeId = ', UnidadeId);
@@ -206,13 +177,13 @@ class ChamadoController {
                     PessoaId: PessoaId,
                     UnidadeId: parseInt(UnidadeId),
                     ChamadoDescricaoInicial: ChamadoDescricaoInicial.trim(),
-                    ChamadoStatus: 'PENDENTE',
+                    ChamadoStatus: 'PROCESSAMENTO',
                     ChamadoDtAbertura: getBrasilDateTime(),
-                    ChamadoBloqueioVia: ChamadoBloqueioVia,
+                    ChamadoBloqueioVia: false, // padrão para abertura
                     ChamadoDiasComProblema: parseInt(ChamadoDiasComProblema),
-                    ChamadoRiscoVidaHumana: ChamadoRiscoVidaHumana,
-                    ChamadoRiscoVidaAnimal: ChamadoRiscoVidaAnimal,
-                    TipSupId: parseInt(TipSupId),
+                    ChamadoRiscoVidaHumana: false, // padrão para abertura
+                    ChamadoRiscoVidaAnimal: false, // padrão para abertura
+                    TipSupId: 22, // padrão para abertura (Outros)
                 },
                 include: {
                     Pessoa: {
@@ -233,42 +204,51 @@ class ChamadoController {
                 }
             });
 
+            // Registra histórico de chamado indicando que se criou o mesmo (TODOS) os tipos de usuário podem ver
+            await prisma.historicoChamado.create({
+                data: {
+                    ChamadoId: chamado.ChamadoId,
+                    HistChamadoDescricao: 'Foi criado o chamado pelo(a) cidadão(ã) ' + chamado.Pessoa.PessoaNome,
+                    HistChamadoDt: getBrasilDateTime(),
+                    HistChamadoUsuarioVer: 'TODOS'
+                }
+            });
+
+            // --- Gravar log de criação
+            const LogAcao = 'CRIARCHAMADO';
+            const LogDetalhe = 'Foi criado o chamado de ID (' + chamado.ChamadoId + ' | N1-N2 = ' + proximoN1 + '-' + proximoN2 + '), pela pessoa de ID (' + PessoaId + ' | ' + pessoa.PessoaNome + '). Dados na criação: ' + JSON.stringify(chamado) + ')';
+            await gravarLog(PessoaId, LogAcao, 'PESSOA', LogDetalhe, chamado.ChamadoId);
+            // ---
+
             // ========== RESPONDER AO CLIENTE IMEDIATAMENTE ==========
             res.status(201).json({
                 message: 'Chamado criado com sucesso',
                 data: chamado,
             });
 
-            let risco_vida_humana = 0;
-            if (ChamadoRiscoVidaHumana) {
-                risco_vida_humana = 1;
-            }
-
-            let risco_vida_animal = 0;
-            if (ChamadoRiscoVidaAnimal) {
-                risco_vida_animal = 1;
-            }
-
-            let bloqueio_via = 0;
-            if (ChamadoBloqueioVia) {
-                bloqueio_via = 1;
-            }
-
             // ========== PROCESSAR CLASSIFICAÇÃO EM BACKGROUND ==========
-            // Não usar await - deixa executar em segundo plano
+            // Usar o serviço com RabbitMQ
             processarClassificacaoEmBackground(chamado.ChamadoId, {
                 dias_problema: parseInt(ChamadoDiasComProblema),
-                risco_vida_humana: risco_vida_humana,
-                risco_vida_animal: risco_vida_animal,
-                bloqueio_via: bloqueio_via,
+                descricao: ChamadoDescricaoInicial
+            }).catch(error => {
+                console.error(`Erro ao classificar chamado ${chamado.ChamadoId} em background:`, error);
+            });
+            /*
+            processarClassificacaoEmBackground(chamado.ChamadoId, {
+                dias_problema: parseInt(ChamadoDiasComProblema),
+                risco_vida_humana: ChamadoRiscoVidaHumana ? 1 : 0,
+                risco_vida_animal: ChamadoRiscoVidaAnimal ? 1 : 0,
+                bloqueio_via: ChamadoBloqueioVia ? 1 : 0,
                 tipo_chamanado: parseInt(TipSupId)
             }).catch(error => {
                 console.error(`Erro ao classificar chamado ${chamado.ChamadoId} em background:`, error);
             });
+            */
 
         } catch (error) {
             console.error('Erro ao abrir chamado:', error);
-            res.status(500).json({ error: 'Erro ao abrir chamado' });
+            return res.status(500).json({ error: 'Erro ao abrir chamado' });
         }
     }
 
@@ -283,10 +263,10 @@ class ChamadoController {
                 ChamadoDescricaoInicial,
                 ChamadoPrioridade,
                 ChamadoUrgencia,
-                ChamadoDiasComProblema,
-                ChamadoRiscoVidaHumana,
-                ChamadoRiscoVidaAnimal,
-                ChamadoBloqueioVia,
+                ChamadoDiasComProblema
+                //ChamadoRiscoVidaHumana,
+                //ChamadoRiscoVidaAnimal,
+                //ChamadoBloqueioVia,
             } = req.body;
 
             const usuarioLogado = req.usuario;
@@ -357,8 +337,8 @@ class ChamadoController {
 
                 // Dados que somente a pessoa pode alterar
                 if (tipoAcesso === 'PESSOA') {
-                    if (!ChamadoDiasComProblema || isNaN(parseInt(ChamadoDiasComProblema)) || parseInt(ChamadoDiasComProblema) < 1) {
-                        return res.status(400).json({ error: 'Dias com problemas deve ser maior ou igual a um' });
+                    if (isNaN(parseInt(ChamadoDiasComProblema)) || parseInt(ChamadoDiasComProblema) < 0) {
+                        return res.status(400).json({ error: 'Dias com problemas deve ser maior ou igual a zero' });
                     } else {
                         // Verificar se o valor mudou para reclassificar
                         if (chamadoExistente.ChamadoDiasComProblema !== parseInt(ChamadoDiasComProblema)) {
@@ -367,6 +347,8 @@ class ChamadoController {
                         dadosAtualizacao.ChamadoDiasComProblema = parseInt(ChamadoDiasComProblema);
                     }
 
+                    // PLN irá identificar os dados
+                    /*
                     if (ChamadoRiscoVidaHumana === undefined || typeof ChamadoRiscoVidaHumana !== 'boolean') {
                         return res.status(400).json({ error: 'Risco de vida humana é obrigatório' });
                     } else {
@@ -393,6 +375,7 @@ class ChamadoController {
                         }
                         dadosAtualizacao.ChamadoBloqueioVia = ChamadoBloqueioVia;
                     }
+                    */
 
                     // Set status for FALTAINFORMACAO, volta para PROCESSAMENTO para nova análise
                     if (chamadoExistente.ChamadoStatus === 'FALTAINFORMACAO') {
@@ -412,7 +395,7 @@ class ChamadoController {
                     tipoAcesso = 'GESTOR';
                 }
 
-                console.log('Gestor logado = ', gestorLogado);
+                //console.log('Gestor logado = ', gestorLogado);
                 if (chamadoExistente.ChamadoStatus === 'FALTAINFORMACAO') {
                     return res.status(403).json({
                         error: 'Você não tem permissão para alterar os dados deste chamado por causa do seu status'
@@ -445,7 +428,7 @@ class ChamadoController {
                     tipo_chamanado: tipSupIdAtual
                 };
 
-                console.log(`🔄 Chamado ${chamadoId} será reclassificado devido a alterações nos campos de classificação`);
+                //console.log(`🔄 Chamado ${chamadoId} será reclassificado devido a alterações nos campos de classificação`);
             }
 
             // Validar e adicionar campos de acordo com o tipo de acesso
@@ -503,7 +486,7 @@ class ChamadoController {
                 }
             }
 
-            console.log('EquipeId = ', EquipeId);
+            //console.log('EquipeId = ', EquipeId);
             if ((EquipeId !== undefined && EquipeId) && tipoAcesso === 'GESTOR') {
                 // Verificar se a equipe existe e pertence à unidade
                 const equipe = await prisma.equipe.findFirst({
@@ -523,10 +506,11 @@ class ChamadoController {
                 dadosAtualizacao.EquipeId = EquipeId;
             }
 
-            // Verificar se o status está como em atendimento, se sim ser obrigatório a equipe
-            if (chamadoExistente.ChamadoStatus === 'EMATENDIMENTO' && !dadosAtualizacao.EquipeId && !chamadoExistente.EquipeId) {
+            // Verificar se o status está como em atendimento, se sim não permite alteração
+            //if (chamadoExistente.ChamadoStatus === 'EMATENDIMENTO' && !dadosAtualizacao.EquipeId && !chamadoExistente.EquipeId) {
+            if (chamadoExistente.ChamadoStatus === 'EMATENDIMENTO') {
                 return res.status(400).json({
-                    error: 'Chamados em atendimento devem ter uma equipe atribuída'
+                    error: 'Chamados em atendimento, não permitido alteração'
                 });
             }
 
@@ -539,7 +523,10 @@ class ChamadoController {
                 if (tipoAcesso === 'GESTOR') {
                     dadosAtualizacao.ChamadoDescricaoFormatada = ChamadoDescricaoInicial.trim();
                 } else if (chamadoExistente.ChamadoStatus === 'PENDENTE' || chamadoExistente.ChamadoStatus === 'FALTAINFORMACAO') {
-                    dadosAtualizacao.ChamadoDescricaoInicial = ChamadoDescricaoInicial.trim();
+                    if (chamadoExistente.ChamadoDescricaoInicial !== ChamadoDescricaoInicial.trim()) {
+                        dadosAtualizacao.ChamadoDescricaoInicial = ChamadoDescricaoInicial.trim();
+                        precisaReclassificar = true;
+                    }
                 }
             } else if (ChamadoDescricaoInicial !== undefined && ChamadoDescricaoInicial.trim() === '') {
                 if (tipoAcesso !== 'GESTOR') {
@@ -547,7 +534,7 @@ class ChamadoController {
                 }
             }
 
-            if (ChamadoPrioridade !== undefined && tipoAcesso !== 'PESSOA') {
+            if (ChamadoPrioridade !== undefined && tipoAcesso === 'GESTOR') {
                 const prioridade = parseInt(ChamadoPrioridade);
                 if (isNaN(prioridade) || prioridade < 1 || prioridade > 10) {
                     return res.status(400).json({
@@ -557,7 +544,7 @@ class ChamadoController {
                 dadosAtualizacao.ChamadoPrioridade = prioridade;
             }
 
-            if (ChamadoUrgencia !== undefined && tipoAcesso !== 'PESSOA') {
+            if (ChamadoUrgencia !== undefined && tipoAcesso === 'GESTOR') {
                 const urgenciasValidas = ['BAIXA', 'MEDIA', 'ALTA', 'URGENTE'];
                 if (!urgenciasValidas.includes(ChamadoUrgencia)) {
                     return res.status(400).json({
@@ -607,6 +594,12 @@ class ChamadoController {
                 }
             });
 
+            // --- Gravar log de criação
+            const LogAcao = 'ALTERARCHAMADO';
+            const LogDetalhe = 'Foi alterado o chamado de ID (' + chamadoAtualizado.ChamadoId + ' | N1-N2 = ' + chamadoAtualizado.ChamadoN1 + '-' + chamadoAtualizado.ChamadoN2 + '), pelo tipo de usuário (' + tipoAcesso + ') de ID (' + usuarioLogado.usuarioId + '). Dados na originais: ' + JSON.stringify(chamadoExistente) + '), dados atualizados: ' + JSON.stringify(chamadoAtualizado);
+            await gravarLog(usuarioLogado.usuarioId, LogAcao, tipoAcesso, LogDetalhe, chamadoAtualizado.ChamadoId);
+            // ---
+
             // ========== RESPONDER AO CLIENTE ==========
             res.status(200).json({
                 message: 'Chamado atualizado com sucesso',
@@ -614,6 +607,51 @@ class ChamadoController {
                 reclassificacao_solicitada: precisaReclassificar || false
             });
 
+            // ========== PROCESSAR RECLASSIFICAÇÃO EM BACKGROUND ==========
+            if (precisaReclassificar && dadosParaReclassificacao) {
+                console.log(`🔄 Iniciando reclassificação em background para chamado ${chamadoId}...`);
+
+                // ✅ Usar o serviço com RabbitMQ
+                processarClassificacaoEmBackground(chamadoId, dadosParaReclassificacao).catch(error => {
+                    console.error(`Erro ao reclassificar chamado ${chamadoId} em background:`, error);
+                });
+            } else {
+
+                if (tipoAcesso === 'GESTOR') {
+                    // Atualizar SOMENTE o campo ChamadoStatus
+                    await prisma.chamado.update({
+                        where: { ChamadoId: chamadoAtualizado.ChamadoId },
+                        data: {
+                            ChamadoStatus: 'ANALISADO'
+                        }
+                    });
+
+                    if (chamadoExistente.ChamadoStatus !== 'ANALISADO') {
+                        // Registra histórico do chamado (GESTOR/TECNICO)
+                        await prisma.historicoChamado.create({
+                            data: {
+                                ChamadoId: chamadoAtualizado.ChamadoId,
+                                HistChamadoDescricao: 'Chamado foi analisado pelo(a) gestor(a) ' + usuarioLogado.usuarioNome,
+                                HistChamadoDt: getBrasilDateTime(),
+                                HistChamadoUsuarioVer: 'GESTEC'
+                            }
+                        });
+
+                        // Registra histórico do chamado (PESSOA)
+                        await prisma.historicoChamado.create({
+                            data: {
+                                ChamadoId: chamadoAtualizado.ChamadoId,
+                                HistChamadoDescricao: 'Chamado foi analisado por um gestor da unidade',
+                                HistChamadoDt: getBrasilDateTime(),
+                                HistChamadoUsuarioVer: 'PESSOA'
+                            }
+                        });
+                    }
+                }
+
+            }
+
+            /* // Antigo
             // ========== PROCESSAR RECLASSIFICAÇÃO EM BACKGROUND ==========
             if (precisaReclassificar && dadosParaReclassificacao) {
                 console.log(`🔄 Iniciando reclassificação em background para chamado ${chamadoId}...`);
@@ -630,10 +668,11 @@ class ChamadoController {
                     }
                 });
             }
+            */
 
         } catch (error) {
             console.error('Erro ao alterar chamado:', error);
-            res.status(500).json({ error: 'Erro ao alterar chamado' });
+            return res.status(500).json({ error: 'Erro ao alterar chamado' });
         }
     }
 
@@ -799,7 +838,7 @@ class ChamadoController {
 
             //console.log('Chamados encontrados:', chamados, 'Total:', chamados.length);
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: chamados,
                 paginacao: {
                     paginaAtual,
@@ -811,7 +850,7 @@ class ChamadoController {
 
         } catch (error) {
             console.error('Erro ao listar chamados:', error);
-            res.status(500).json({ error: 'Erro ao listar chamados' });
+            return res.status(500).json({ error: 'Erro ao listar chamados' });
         }
     }
 
@@ -943,13 +982,13 @@ class ChamadoController {
 
             //console.log('Chamado encontrado:', chamado);
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: chamado
             });
 
         } catch (error) {
             console.error('Erro ao buscar chamado:', error);
-            res.status(500).json({ error: 'Erro ao buscar chamado' });
+            return res.status(500).json({ error: 'Erro ao buscar chamado' });
         }
     }
 
@@ -1033,14 +1072,40 @@ class ChamadoController {
                 }
             });
 
-            res.status(200).json({
+            // Registra histórico do chamado (GESTOR/TECNICO)
+            await prisma.historicoChamado.create({
+                data: {
+                    ChamadoId: chamadoAtualizado.ChamadoId,
+                    HistChamadoDescricao: 'Foi atribuido o chamado à equipe ' + chamadoAtualizado.Equipe.EquipeNome + ' pelo gestor ' + gestor.GestorNome,
+                    HistChamadoDt: getBrasilDateTime(),
+                    HistChamadoUsuarioVer: 'GESTEC'
+                }
+            });
+
+            // Registra histórico do chamado (PESSOA)
+            await prisma.historicoChamado.create({
+                data: {
+                    ChamadoId: chamado.ChamadoId,
+                    HistChamadoDescricao: 'Foi atribuido o chamado à uma equipe técnica para a atuação no chamado',
+                    HistChamadoDt: getBrasilDateTime(),
+                    HistChamadoUsuarioVer: 'PESSOA'
+                }
+            });
+
+            // --- Gravar log de atribuição de equipe ao chamado
+            const LogAcao = 'ATRIBUIREQUIPECHAMADO';
+            const LogDetalhe = 'Foi alterado o status do chamado de ID (' + chamadoId + '), de ' + chamado.ChamadoStatus + ' para ' + chamadoAtualizado.ChamadoStatus + ', pelo(a) ' + usuarioLogado.usuarioTipo + ' de ID (' + usuarioLogado.usuarioId + ')';
+            await gravarLog(usuarioLogado.usuarioId, LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, chamado.ChamadoId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Equipe atribuída ao chamado com sucesso',
                 data: chamadoAtualizado
             });
 
         } catch (error) {
             console.error('Erro ao atribuir equipe:', error);
-            res.status(500).json({ error: 'Erro ao atribuir equipe' });
+            return res.status(500).json({ error: 'Erro ao atribuir equipe' });
         }
     }
 
@@ -1077,6 +1142,12 @@ class ChamadoController {
                                     TecEquStatus: 'ATIVO'
                                 }
                             }
+                        }
+                    },
+                    Pessoa: {
+                        select: {
+                            PessoaId: true,
+                            PessoaNome: true,
                         }
                     }
                 }
@@ -1254,14 +1325,90 @@ class ChamadoController {
                 }
             });
 
-            res.status(200).json({
+            // Registra histórico de chamado indicando que foi alterado o status do chamado
+            let HistChamadoDescricao = '';
+            let HistChamadoDescricaoPessoa = '';
+            console.log('ChamadoStatus = ', ChamadoStatus);
+            switch (ChamadoStatus) {
+                case 'PENDENTE':
+                    if (chamado.ChamadoStatus === 'PROCESSAMENTO') {
+                        HistChamadoDescricao = 'Foi avançado o chamado para pendente pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                        HistChamadoDescricaoPessoa = 'Foi avançado o chamado para pendente por um gestor da unidade';
+                    } else {
+                        HistChamadoDescricao = 'Foi retornado o chamado para pendente pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                        HistChamadoDescricaoPessoa = 'Foi retornado o chamado para pendente por um gestor da unidade';
+                    }
+                    break;
+                case 'ANALISADO':
+                    if (chamado.ChamadoStatus === 'PENDENTE') {
+                        HistChamadoDescricao = 'Chamado foi analisado pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                        HistChamadoDescricaoPessoa = 'Chamado foi analisado por um gestor da unidade';
+                    } else {
+                        HistChamadoDescricao = 'Chamado foi retornado para analisado pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                        HistChamadoDescricaoPessoa = 'Chamado foi retornado analisado por um gestor da unidade';
+                    }
+                    break;
+                case 'ATRIBUIDO':
+                    HistChamadoDescricao = 'Chamado foi atribuido à equipe ' + chamadoAtualizado.Equipe.EquipeNome + ', pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                    HistChamadoDescricaoPessoa = 'Chamado foi atribuido a uma equipe por um gestor da unidade';
+                    break;
+                case 'CONCLUIDO':
+                    if (usuarioLogado.usuarioTipo === 'TECNICO') {
+                        HistChamadoDescricao = 'Chamado foi concluído pelo(a) técnico(a) ' + usuarioLogado.usuarioNome;
+                        HistChamadoDescricaoPessoa = 'Chamado foi concluído por um técnico da equipe';
+                    } else if (usuarioLogado.usuarioTipo === 'GESTOR') {
+                        HistChamadoDescricao = 'Chamado foi concluído pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                        HistChamadoDescricaoPessoa = 'Chamado foi concluído por um gestor da unidade';
+                    }
+                    break;
+                case 'CANCELADO':
+                    HistChamadoDescricao = 'Chamado foi cancelado pelo(a) cidadão(ã) ' + chamadoAtualizado.Pessoa.PessoaNome;
+                    HistChamadoDescricaoPessoa = HistChamadoDescricao;
+                    break;
+                case 'RECUSADO':
+                    HistChamadoDescricao = 'Chamado foi recusado pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                    HistChamadoDescricaoPessoa = 'Chamado foi recusado por um gestor da unidade';
+                    break;
+                case 'FALTAINFORMACAO':
+                    HistChamadoDescricao = 'Chamado foi classificado como faltando informações pelo(a) gestor(a) ' + usuarioLogado.usuarioNome;
+                    HistChamadoDescricaoPessoa = 'Chamado foi classificado como faltando informações por um gestor da unidade';
+                    break;
+            }
+
+            // Registra histórico do chamado (GESTOR/TECNICO)
+            await prisma.historicoChamado.create({
+                data: {
+                    ChamadoId: chamado.ChamadoId,
+                    HistChamadoDescricao: HistChamadoDescricao,
+                    HistChamadoDt: getBrasilDateTime(),
+                    HistChamadoUsuarioVer: 'GESTEC'
+                }
+            });
+
+            // Registra histórico do chamado (PESSOA)
+            await prisma.historicoChamado.create({
+                data: {
+                    ChamadoId: chamado.ChamadoId,
+                    HistChamadoDescricao: HistChamadoDescricaoPessoa,
+                    HistChamadoDt: getBrasilDateTime(),
+                    HistChamadoUsuarioVer: 'PESSOA'
+                }
+            });
+
+            // --- Gravar log de alteração de status do chamado
+            const LogAcao = 'ALTERARSTATUSCHAMADO';
+            const LogDetalhe = 'Foi alterado o status do chamado de ID (' + chamadoId + '), de ' + chamado.ChamadoStatus + ' para ' + chamadoAtualizado.ChamadoStatus + ', pelo(a) ' + usuarioLogado.usuarioTipo + ' de ID (' + usuarioLogado.usuarioId + ')';
+            await gravarLog(usuarioLogado.usuarioId, LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, chamado.ChamadoId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Status do chamado atualizado com sucesso',
                 data: chamadoAtualizado
             });
 
         } catch (error) {
             console.error('Erro ao alterar status:', error);
-            res.status(500).json({ error: 'Erro ao alterar status' });
+            return res.status(500).json({ error: 'Erro ao alterar status' });
         }
     }
 
@@ -1360,7 +1507,7 @@ class ChamadoController {
                 filtro.UnidadeId = parseInt(unidadeId);
             }
 
-            console.log('filtro = ', filtro);
+            //console.log('filtro = ', filtro);
 
             // Buscar estatísticas
             const [
@@ -1443,7 +1590,7 @@ class ChamadoController {
                 }, {})
             }
 
-            console.log('data = ', data);
+            //console.log('data = ', data);
 
             return res.status(200).json({
                 data: data
@@ -1451,7 +1598,7 @@ class ChamadoController {
 
         } catch (error) {
             console.error('Erro ao buscar estatísticas:', error);
-            res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+            return res.status(500).json({ error: 'Erro ao buscar estatísticas' });
         }
     }
 

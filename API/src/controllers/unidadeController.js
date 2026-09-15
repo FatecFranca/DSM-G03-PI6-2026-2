@@ -61,8 +61,8 @@ class UnidadeController {
 
             // --- Gravar log de criação
             const LogAcao = 'CADASTRARUNIDADE';
-            const LogDetelhe = 'Foi cadastrada a unidade de ID (' + unidade.UnidadeId + ')';
-            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetelhe, String(unidade.UnidadeId).trim());
+            const LogDetalhe = 'Foi cadastrada a unidade de ID (' + unidade.UnidadeId + ')';
+            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetalhe, String(unidade.UnidadeId).trim());
             // ---
 
             return res.status(201).json({
@@ -179,8 +179,8 @@ class UnidadeController {
 
             // --- Gravar log de alteração
             const LogAcao = 'ALTERARUNIDADE';
-            const LogDetelhe = 'Foi alterada a unidade de ID (' + unidadeAtualizada.UnidadeId + '), dados antes da alteração (' + JSON.stringify(unidadeExistente) + '), dados depois da atualização (' + JSON.stringify(unidadeAtualizada) + ')';
-            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetelhe, String(unidadeAtualizada.UnidadeId).trim());
+            const LogDetalhe = 'Foi alterada a unidade de ID (' + unidadeAtualizada.UnidadeId + '), dados antes da alteração (' + JSON.stringify(unidadeExistente) + '), dados depois da atualização (' + JSON.stringify(unidadeAtualizada) + ')';
+            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetalhe, String(unidadeAtualizada.UnidadeId).trim());
             // ---
 
             return res.status(200).json({
@@ -222,8 +222,8 @@ class UnidadeController {
 
             // Buscar unidades
             const usuarioLogado = req.usuario;
-            console.log('usuarioLogado = ', usuarioLogado);
-            console.log('usuarioLogado = ', usuarioLogado);
+            //console.log('usuarioLogado = ', usuarioLogado);
+            //console.log('usuarioLogado = ', usuarioLogado);
             if (usuarioLogado) {
                 if (usuarioLogado.usuarioTipo === 'ADMINISTRADOR') {
                     const [unidades, total] = await prisma.$transaction([
@@ -413,8 +413,8 @@ class UnidadeController {
 
             // --- Gravar log de alteração
             const LogAcao = 'ALTERARSTATUSUNIDADE';
-            const LogDetelhe = 'Foi alterado o status da unidade de ID (' + unidadeAtualizada.UnidadeId + '), status antes da alteração (' + unidadeExistente.UnidadeStatus + '), status depois da atualização (' + unidadeAtualizada.UnidadeStatus + ')';
-            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetelhe, String(unidadeAtualizada.UnidadeId).trim());
+            const LogDetalhe = 'Foi alterado o status da unidade de ID (' + unidadeAtualizada.UnidadeId + '), status antes da alteração (' + unidadeExistente.UnidadeStatus + '), status depois da atualização (' + unidadeAtualizada.UnidadeStatus + ')';
+            await gravarLog(String(req.usuario.usuarioId).trim(), LogAcao, req.usuario.usuarioTipo, LogDetalhe, String(unidadeAtualizada.UnidadeId).trim());
             // ---
 
             return res.status(200).json({

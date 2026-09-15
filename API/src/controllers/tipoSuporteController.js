@@ -60,8 +60,8 @@ class TipoSuporteController {
 
             // --- Gravar log de cadastro
             const LogAcao = 'CADASTRARTIPOSUPORTE';
-            const LogDetelhe = 'Foi cadastrado o tipo de suporte de ID (' + tipoSuporte.TipSupId + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(tipoSuporte.TipSupId).trim());
+            const LogDetalhe = 'Foi cadastrado o tipo de suporte de ID (' + tipoSuporte.TipSupId + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, String(tipoSuporte.TipSupId).trim());
             // ---
 
             return res.status(201).json({
@@ -182,8 +182,8 @@ class TipoSuporteController {
 
             // --- Gravar log de alteração
             const LogAcao = 'ALTERARTIPOSUPORTE';
-            const LogDetelhe = 'Foi alterado o tipo de suporte de ID (' + tipoAtualizado.TipSupId + '), dados antes da alteração (' + JSON.stringify(tipoExistente) + '), dados depois da alteração (' + JSON.stringify(tipoAtualizado) + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(tipoAtualizado.TipSupId).trim());
+            const LogDetalhe = 'Foi alterado o tipo de suporte de ID (' + tipoAtualizado.TipSupId + '), dados antes da alteração (' + JSON.stringify(tipoExistente) + '), dados depois da alteração (' + JSON.stringify(tipoAtualizado) + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, String(tipoAtualizado.TipSupId).trim());
             // ---
 
             return res.status(200).json({
@@ -575,8 +575,8 @@ class TipoSuporteController {
 
             // --- Gravar log de alteração de status
             const LogAcao = 'ALTERARSTATUSTIPOSUPORTE';
-            const LogDetelhe = 'Foi alterado o status do tipo de suporte de ID (' + tipoAtualizado.TipSupId + '), de (' + tipoExistente.TipSupStatus + ') para (' + tipoAtualizado.TipSupStatus + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(tipoAtualizado.TipSupId).trim());
+            const LogDetalhe = 'Foi alterado o status do tipo de suporte de ID (' + tipoAtualizado.TipSupId + '), de (' + tipoExistente.TipSupStatus + ') para (' + tipoAtualizado.TipSupStatus + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, String(tipoAtualizado.TipSupId).trim());
             // ---
 
             return res.status(200).json({
@@ -865,8 +865,8 @@ class TipoSuporteController {
 
             // --- Gravar vinculo unidade e tipo de suporte
             const LogAcao = 'VINCULARUNIDADEIPOSUPORTE';
-            const LogDetelhe = 'Foi vinculado o tipo de suporte de ID (' + tipoSuporteId + ') com a unidade de ID (' + unidadeIdInt + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, vinculo.TipSupUniId);
+            const LogDetalhe = 'Foi vinculado o tipo de suporte de ID (' + tipoSuporteId + ') com a unidade de ID (' + unidadeIdInt + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, vinculo.TipSupUniId);
             // ---
 
             return res.status(201).json({
@@ -937,8 +937,8 @@ class TipoSuporteController {
 
             // --- Gravar alteração de status de vinculo de unidade e tipo de suporte
             const LogAcao = 'ALTERARSTATUSVINCULOUNIDADEIPOSUPORTE';
-            const LogDetelhe = 'Foi alterado o status do vinculo de tipo de suporte de ID (' + vinculoAtualizado.TipSupId + ') com a unidade de ID (' + vinculoAtualizado.UnidadeId + '), de status (' + vinculo.TipSupUniStatus + ') para (' + vinculoAtualizado.TipSupUniStatus + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, vinculoAtualizado.TipSupUniId);
+            const LogDetalhe = 'Foi alterado o status do vinculo de tipo de suporte de ID (' + vinculoAtualizado.TipSupId + ') com a unidade de ID (' + vinculoAtualizado.UnidadeId + '), de status (' + vinculo.TipSupUniStatus + ') para (' + vinculoAtualizado.TipSupUniStatus + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, vinculoAtualizado.TipSupUniId);
             // ---
 
             return res.status(200).json({
@@ -981,8 +981,8 @@ class TipoSuporteController {
 
             // --- Gravar exclusão de vinculo unidade e tipo de suporte
             const LogAcao = 'DESVINCULARUNIDADEIPOSUPORTE';
-            const LogDetelhe = 'Foi desvinculado o tipo de suporte de ID (' + vinculo.TipSupId + ') com a unidade de ID (' + vinculo.UnidadeId + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, String(vinculo.TipSupId).trim());
+            const LogDetalhe = 'Foi desvinculado o tipo de suporte de ID (' + vinculo.TipSupId + ') com a unidade de ID (' + vinculo.UnidadeId + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, String(vinculo.TipSupId).trim());
             // ---
 
             return res.status(200).json({

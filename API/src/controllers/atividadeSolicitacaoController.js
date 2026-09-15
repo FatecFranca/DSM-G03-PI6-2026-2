@@ -6,9 +6,7 @@ const { verficarPermissaoSolicitacao } = require('../utils/verificarPermissoes.j
 
 class AtividadeSolicitacaoController {
 
-    // =============================================
-    // ADICIONAR ATIVIDADE À SOLICITAÇÃO
-    // =============================================
+    // Adicionar aticvidade a solicitação
     async adicionarAtividade(req, res) {
         try {
             const { id } = req.params; // ID da solicitação
@@ -151,9 +149,7 @@ class AtividadeSolicitacaoController {
         }
     }
 
-    // =============================================
-    // LISTAR ATIVIDADES DE UMA SOLICITAÇÃO
-    // =============================================
+    // Listar atividades de uma solicitação
     async listarAtividadesPorSolicitacao(req, res) {
         try {
             const { id } = req.params;
@@ -260,9 +256,7 @@ class AtividadeSolicitacaoController {
         }
     }
 
-    // =============================================
-    // BUSCAR ATIVIDADE POR ID
-    // =============================================
+    // Buscar atividade por ID
     async buscarAtividadePorId(req, res) {
         try {
             const { id } = req.params;
@@ -349,9 +343,7 @@ class AtividadeSolicitacaoController {
         }
     }
 
-    // =============================================
-    // ALTERAR ATIVIDADE
-    // =============================================
+    // Alterar atividade
     async alterarAtividade(req, res) {
         try {
             const { id } = req.params;
@@ -463,9 +455,7 @@ class AtividadeSolicitacaoController {
         }
     }
 
-    // =============================================
-    // EXCLUIR ATIVIDADE
-    // =============================================
+    // Excluir atividade
     async excluirAtividade(req, res) {
         try {
             const { id } = req.params;

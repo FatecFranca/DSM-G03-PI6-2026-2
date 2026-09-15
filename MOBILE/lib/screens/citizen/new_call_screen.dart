@@ -81,6 +81,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
 
   /// Envia o chamado para a API com a nova estrutura
   Future<void> _submitCall() async {
+    /*
     if (_selectedTipSupId == null) {
       _showCustomSnackBar(
         '⚠️ Selecione a categoria do problema',
@@ -88,6 +89,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
       );
       return;
     }
+    */
     if (_descricaoController.text.trim().isEmpty) {
       _showCustomSnackBar(
         '⚠️ Descreva o problema detalhadamente',
@@ -100,12 +102,12 @@ class _NewCallScreenState extends State<NewCallScreen> {
 
     final body = {
       'PessoaId': _currentUser!.id,
-      'TipSupId': _selectedTipSupId,
+      //'TipSupId': _selectedTipSupId,
       'ChamadoDescricaoInicial': _descricaoController.text.trim(),
       'ChamadoDiasComProblema': int.tryParse(_diasController.text) ?? 0,
-      'ChamadoRiscoVidaHumana': _riskoVidaHumana,
-      'ChamadoRiscoVidaAnimal': _riskoVidaAnimal,
-      'ChamadoBloqueioVia': _bloqueioVia,
+      //'ChamadoRiscoVidaHumana': _riskoVidaHumana,
+      //'ChamadoRiscoVidaAnimal': _riskoVidaAnimal,
+      //'ChamadoBloqueioVia': _bloqueioVia,
     };
 
     try {
@@ -171,6 +173,8 @@ class _NewCallScreenState extends State<NewCallScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
+                  /*
                   _buildLabel('O QUE PRECISA DE REPARO?', cs),
                   const SizedBox(height: 12),
 
@@ -205,6 +209,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
                       ),
                     ),
                   ),
+                  */
 
                   const SizedBox(height: 24),
                   _buildLabel('DESCRIÇÃO DO PROBLEMA', cs),
@@ -229,6 +234,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
                     decoration: _inputStyle(cs, '0'),
                   ),
 
+                  /*
                   const SizedBox(height: 32),
                   _buildLabel('AVALIAÇÃO DE RISCO', cs),
                   const SizedBox(height: 8),
@@ -253,6 +259,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
                     (v) => setState(() => _bloqueioVia = v),
                     cs,
                   ),
+                  */
 
                   const SizedBox(height: 40),
                   _buildSubmitButton(cs, textScale),

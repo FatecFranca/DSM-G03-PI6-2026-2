@@ -1,6 +1,7 @@
 // src/controllers/equipeController.js
 const prisma = require('../prisma.js');
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { gravarLog } = require('../utils/logGrava.js');
 
 class EquipeController {
 
@@ -115,6 +116,12 @@ class EquipeController {
                 }
             });
 
+            // --- Gravar log de criação
+            const LogAcao = 'CRIAREQUIPE';
+            const LogDetalhe = 'Foi criada a equipe de ID (' + equipe.EquipeId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). Dados na criação: (' + JSON.stringify(equipe) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, equipe.EquipeId);
+            // ---
+
             return res.status(201).json({
                 message: 'Equipe cadastrada com sucesso',
                 data: equipe
@@ -122,7 +129,7 @@ class EquipeController {
 
         } catch (error) {
             console.error('Erro ao cadastrar equipe:', error);
-            res.status(500).json({ error: 'Erro ao cadastrar equipe' });
+            return res.status(500).json({ error: 'Erro ao cadastrar equipe' });
         }
     }
 
@@ -261,14 +268,20 @@ class EquipeController {
                 }
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERAREQUIPE';
+            const LogDetalhe = 'Foi alterada a equipe de ID (' + equipeAtualizada.EquipeId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). Dados antes da atualização: (' + JSON.stringify(equipeExistente) + '), dados depois da atualização: (' + JSON.stringify(equipeAtualizada) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, equipeAtualizada.EquipeId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Equipe atualizada com sucesso',
                 data: equipeAtualizada
             });
 
         } catch (error) {
             console.error('Erro ao alterar equipe:', error);
-            res.status(500).json({ error: 'Erro ao alterar equipe' });
+            return res.status(500).json({ error: 'Erro ao alterar equipe' });
         }
     }
 
@@ -368,7 +381,7 @@ class EquipeController {
                 prisma.equipe.count({ where: filtro })
             ]);
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: equipes,
                 paginacao: {
                     paginaAtual,
@@ -380,7 +393,7 @@ class EquipeController {
 
         } catch (error) {
             console.error('Erro ao listar equipes:', error);
-            res.status(500).json({ error: 'Erro ao listar equipes' });
+            return res.status(500).json({ error: 'Erro ao listar equipes' });
         }
     }
 
@@ -459,13 +472,13 @@ class EquipeController {
                 }
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: equipe
             });
 
         } catch (error) {
             console.error('Erro ao buscar equipe:', error);
-            res.status(500).json({ error: 'Erro ao buscar equipe' });
+            return res.status(500).json({ error: 'Erro ao buscar equipe' });
         }
     }
 
@@ -569,14 +582,20 @@ class EquipeController {
                 });
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração de status
+            const LogAcao = 'ALTERARSTATUSEQUIPE';
+            const LogDetalhe = 'Foi alterado o status da equipe de ID (' + equipeExistente.EquipeId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). De ' + equipeExistente.EquipeStatus + ' para ' + EquipeStatus;
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, equipeExistente.EquipeId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Status da equipe atualizado com sucesso',
                 data: equipeAtualizada
             });
 
         } catch (error) {
             console.error('Erro ao alterar status da equipe:', error);
-            res.status(500).json({ error: 'Erro ao alterar status da equipe' });
+            return res.status(500).json({ error: 'Erro ao alterar status da equipe' });
         }
     }
 
@@ -725,6 +744,12 @@ class EquipeController {
                 }
             });
 
+            // --- Gravar log de adição de técnico à equipe
+            const LogAcao = 'ADICIONARTECNICOEQUIPE';
+            const LogDetalhe = 'Foi adicionado o técnico de ID (' + tecnico.TecnicoId + ' | ' + tecnico.TecnicoUsuario + ') à equipe de ID (' + equipe.EquipeId + ' | ' + equipe.EquipeNome + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, vinculo.TecEquId);
+            // ---
+
             return res.status(201).json({
                 message: 'Técnico adicionado à equipe com sucesso',
                 data: vinculo
@@ -737,7 +762,7 @@ class EquipeController {
     }
 
     // Alterar vínculo técnico-equipe (apenas gestores)
-    async alterarTecnicoEquipe(req, res) {
+    async alterarStatusTecnicoEquipe(req, res) {
         try {
             const { vinculoId } = req.params;
             const { TecEquStatus } = req.body;
@@ -794,7 +819,8 @@ class EquipeController {
                     Tecnico: {
                         select: {
                             TecnicoId: true,
-                            TecnicoStatus: true
+                            TecnicoStatus: true,
+                            TecnicoUsuario: true
                         }
                     }
                 }
@@ -848,14 +874,20 @@ class EquipeController {
                 }
             });
 
-            res.status(200).json({
+            // --- Gravar log de remoção de técnico à equipe
+            const LogAcao = 'REMOVERTECNICOEQUIPE';
+            const LogDetalhe = 'Foi removido o técnico de ID (' + vinculo.TecnicoId + ' | ' + vinculo.Tecnico.TecnicoUsuario + ') da equipe de ID (' + vinculo.EquipeId + ' | ' + vinculo.Equipe.EquipeNome + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, vinculo.TecEquId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Vínculo atualizado com sucesso',
                 data: vinculoAtualizado
             });
 
         } catch (error) {
             console.error('Erro ao alterar vínculo:', error);
-            res.status(500).json({ error: 'Erro ao alterar vínculo' });
+            return res.status(500).json({ error: 'Erro ao alterar vínculo' });
         }
     }
 
@@ -900,6 +932,12 @@ class EquipeController {
                         include: {
                             Unidade: true
                         }
+                    },
+                    Tecnico: {
+                        select: {
+                            TecnicoId: true,
+                            TecnicoUsuario: true
+                        }
                     }
                 }
             });
@@ -942,14 +980,20 @@ class EquipeController {
             await prisma.tecnicoEquipe.delete({
                 where: { TecEquId: vinculoId }
             });
+            
+            // --- Gravar log de remoção de técnico à equipe
+            const LogAcao = 'EXCLUIRVINCULOTECNICOEQUIPE';
+            const LogDetalhe = 'Foi excluído o vinculo do técnico de ID (' + vinculo.TecnicoId + ' | ' + vinculo.Tecnico.TecnicoUsuario + ') da equipe de ID (' + vinculo.EquipeId + ' | ' + vinculo.Equipe.EquipeNome + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, vinculo.TecEquId);
+            // ---
 
-            res.status(200).json({
+            return res.status(200).json({
                 message: 'Vínculo removido com sucesso'
             });
 
         } catch (error) {
             console.error('Erro ao remover vínculo:', error);
-            res.status(500).json({ error: 'Erro ao remover vínculo' });
+            return res.status(500).json({ error: 'Erro ao remover vínculo' });
         }
     }
 
@@ -1032,14 +1076,14 @@ class EquipeController {
                 }
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: vinculos,
                 total: vinculos.length
             });
 
         } catch (error) {
             console.error('Erro ao listar vínculos:', error);
-            res.status(500).json({ error: 'Erro ao listar vínculos' });
+            return res.status(500).json({ error: 'Erro ao listar vínculos' });
         }
     }
 
@@ -1122,14 +1166,14 @@ class EquipeController {
                 }
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: vinculos,
                 total: vinculos.length
             });
 
         } catch (error) {
             console.error('Erro ao listar vínculos do técnico:', error);
-            res.status(500).json({ error: 'Erro ao listar vínculos do técnico' });
+            return res.status(500).json({ error: 'Erro ao listar vínculos do técnico' });
         }
     }
 

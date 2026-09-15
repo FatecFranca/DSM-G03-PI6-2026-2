@@ -1,6 +1,7 @@
 // src/controllers/atividadeChamadoController.js
 const prisma = require('../prisma.js');
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { gravarLog } = require('../utils/logGrava.js');
 
 class AtividadeChamadoController {
 
@@ -114,7 +115,8 @@ class AtividadeChamadoController {
                         select: {
                             TecnicoId: true,
                             TecnicoNome: true,
-                            TecnicoEmail: true
+                            TecnicoEmail: true,
+                            TecnicoUsuario: true
                         }
                     },
                     Chamado: {
@@ -129,11 +131,47 @@ class AtividadeChamadoController {
 
             // Se o chamado estava em ATRIBUIDO, mudar para EMATENDIMENTO automaticamente
             if (chamado.ChamadoStatus === 'ATRIBUIDO') {
-                await prisma.chamado.update({
-                    where: { ChamadoId: chamadoId },
-                    data: { ChamadoStatus: 'EMATENDIMENTO' }
+
+                await prisma.$transaction(async (tx) => {
+                    await prisma.chamado.update({
+                        where: { ChamadoId: chamadoId },
+                        data: { ChamadoStatus: 'EMATENDIMENTO' }
+                    });
+
+                    // Registra histórico de chamado indicando que se iniciou atendimento (PESSOA)
+                    await prisma.historicoChamado.create({
+                        data: {
+                            ChamadoId: atividade.ChamadoId,
+                            HistChamadoDescricao: 'Foi iniciado o atendimento ao chamado',
+                            HistChamadoDt: getBrasilDateTime(),
+                            HistChamadoUsuarioVer: 'PESSOA'
+                        }
+                    });
+
+                    // Registra histórico de chamado indicando que se iniciou atendimento (GESTOR/TECNICO)
+                    await prisma.historicoChamado.create({
+                        data: {
+                            ChamadoId: atividade.ChamadoId,
+                            HistChamadoDescricao: 'Foi iniciado o atendimento ao chamado pelo técnico ' + atividade.Tecnico.TecnicoNome,
+                            HistChamadoDt: getBrasilDateTime(),
+                            HistChamadoUsuarioVer: 'GESTEC'
+                        }
+                    });
                 });
+
+                // --- Gravar log de alteração de status do chamado
+                const LogAcao1 = 'ALTERARSTATUSCHAMADO';
+                const LogDetalhe1 = 'Foi alterado o status do chamado de ID (' + atividade.ChamadoId + '), de ATRIBUIDO para EMATENDIMENTO, automaticamente, após a criação da atividade de ID (' + atividade.AtividadeId + '), pelo técnico de ID (' + atividade.TecnicoId + ' / ' + atividade.Tecnico.TecnicoUsuario + ')';
+                await gravarLog(String(atividade.TecnicoId).trim(), LogAcao1, 'TECNICO', LogDetalhe1, atividade.ChamadoId);
+                // ---
+
             }
+
+            // --- Gravar log de criação
+            const LogAcao = 'CRIARATIVIDADE';
+            const LogDetalhe = 'Foi criada atividade de ID (' + atividade.AtividadeId + '), no chamado de ID (' + atividade.ChamadoId + '), pelo técnico de ID (' + atividade.TecnicoId + ' / ' + atividade.Tecnico.TecnicoUsuario + '). Com os dados: (' + JSON.stringify(atividade) + ')';
+            await gravarLog(String(atividade.TecnicoId).trim(), LogAcao, 'TECNICO', LogDetalhe, atividade.AtividadeId);
+            // ---
 
             return res.status(201).json({
                 message: 'Atividade registrada com sucesso',
@@ -223,7 +261,8 @@ class AtividadeChamadoController {
                     Tecnico: {
                         select: {
                             TecnicoId: true,
-                            TecnicoNome: true
+                            TecnicoNome: true,
+                            TecnicoUsuario: true
                         }
                     },
                     Chamado: {
@@ -236,14 +275,20 @@ class AtividadeChamadoController {
                 }
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERARATIVIDADE';
+            const LogDetalhe = 'Foi alterada a atividade de ID (' + atividadeAtualizada.AtividadeId + '), no chamado de ID (' + atividadeAtualizada.ChamadoId + '), pelo técnico de ID (' + atividadeAtualizada.TecnicoId + ' / ' + atividadeAtualizada.Tecnico.TecnicoUsuario + '). Dados antes da alteração: (' + JSON.stringify(atividade) + '), dados depois da atualização: (' + JSON.stringify(atividadeAtualizada) + ')';
+            await gravarLog(String(atividade.TecnicoId).trim(), LogAcao, 'TECNICO', LogDetalhe, atividade.AtividadeId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Atividade atualizada com sucesso',
                 data: atividadeAtualizada
             });
 
         } catch (error) {
             console.error('Erro ao alterar atividade:', error);
-            res.status(500).json({ error: 'Erro ao alterar atividade' });
+            return res.status(500).json({ error: 'Erro ao alterar atividade' });
         }
     }
 
@@ -269,7 +314,13 @@ class AtividadeChamadoController {
             const atividade = await prisma.atividadeChamado.findUnique({
                 where: { AtividadeId: atividadeId },
                 include: {
-                    Chamado: true
+                    Chamado: true,
+                    Tecnico: {
+                        select: {
+                            TecnicoId: true,
+                            TecnicoUsuario: true
+                        }
+                    }
                 }
             });
 
@@ -308,13 +359,19 @@ class AtividadeChamadoController {
                 where: { AtividadeId: atividadeId }
             });
 
-            res.status(200).json({
+            // --- Gravar log de exclusão
+            const LogAcao = 'EXCLUIRATIVIDADE';
+            const LogDetalhe = 'Foi excluida a atividade de ID (' + atividade.AtividadeId + '), no chamado de ID (' + atividade.ChamadoId + '), pelo técnico de ID (' + usuarioLogado.usuarioId + ' / ' + atividade.Tecnico.TecnicoUsuario + '). Dados da atividade excluída: (' + JSON.stringify(atividade) + ')';
+            await gravarLog(String(atividade.TecnicoId).trim(), LogAcao, 'TECNICO', LogDetalhe, atividade.AtividadeId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Atividade excluída com sucesso'
             });
 
         } catch (error) {
             console.error('Erro ao excluir atividade:', error);
-            res.status(500).json({ error: 'Erro ao excluir atividade' });
+            return res.status(500).json({ error: 'Erro ao excluir atividade' });
         }
     }
 
@@ -441,7 +498,7 @@ class AtividadeChamadoController {
 
         } catch (error) {
             console.error('Erro ao listar atividades:', error);
-            res.status(500).json({ error: 'Erro ao listar atividades' });
+            return res.status(500).json({ error: 'Erro ao listar atividades' });
         }
     }
 
@@ -559,7 +616,7 @@ class AtividadeChamadoController {
                 }
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: {
                     tecnico,
                     atividades
@@ -574,7 +631,7 @@ class AtividadeChamadoController {
 
         } catch (error) {
             console.error('Erro ao listar atividades do técnico:', error);
-            res.status(500).json({ error: 'Erro ao listar atividades do técnico' });
+            return res.status(500).json({ error: 'Erro ao listar atividades do técnico' });
         }
     }
 
@@ -677,13 +734,13 @@ class AtividadeChamadoController {
                 });
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: atividade
             });
 
         } catch (error) {
             console.error('Erro ao buscar atividade:', error);
-            res.status(500).json({ error: 'Erro ao buscar atividade' });
+            return res.status(500).json({ error: 'Erro ao buscar atividade' });
         }
     }
 
@@ -754,7 +811,7 @@ class AtividadeChamadoController {
                 })
             ]);
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: {
                     chamadoId: chamadoId,
                     totalAtividades,
@@ -772,7 +829,7 @@ class AtividadeChamadoController {
 
         } catch (error) {
             console.error('Erro ao buscar estatísticas:', error);
-            res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+            return res.status(500).json({ error: 'Erro ao buscar estatísticas' });
         }
     }
 

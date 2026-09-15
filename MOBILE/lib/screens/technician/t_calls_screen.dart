@@ -463,7 +463,7 @@ class _TCallsScreenState extends State<TCallsScreen> {
       );
     }
 
-    // Espaçamento para não sobrepor a barra de navegação 
+    // Espaçamento para não sobrepor a barra de navegação
     widgets.add(const SizedBox(height: 90));
 
     return ListView(padding: const EdgeInsets.all(16), children: widgets);
@@ -711,7 +711,7 @@ class _TCallsScreenState extends State<TCallsScreen> {
                 icon: Icons.check_circle_outline,
                 color: Colors.green.shade700,
               ),
-            ] else if (status == 'ATRIBUIDO')
+            ] else if (status == 'ATRIBUIDO') ...[
               _buildActionButton(
                 onPressed: () async {
                   final res = await Navigator.push(
@@ -729,6 +729,25 @@ class _TCallsScreenState extends State<TCallsScreen> {
                 label: "INICIAR ATENDIMENTO",
                 icon: Icons.play_arrow,
                 color: cs.primary,
+              ),
+            ] else
+              _buildActionButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CallActivitiesScreen(
+                        chamadoId: id,
+                        chamadoN1: int.tryParse(n1) ?? 0,
+                        chamadoN2: int.tryParse(n2) ?? 0,
+                      ),
+                    ),
+                  );
+                },
+                label: "HISTÓRICO ATIVIDADES",
+                icon: Icons.history,
+                color: cs.primary,
+                outlined: true,
               ),
           ],
         ),

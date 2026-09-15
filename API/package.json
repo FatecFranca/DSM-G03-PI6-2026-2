@@ -5,8 +5,11 @@
   "type": "commonjs",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
+    "dev": "nodemon --exec \"node src/server.js\"",
     "start": "node src/server.js",
+    "worker": "node src/workers/classificadorWorker.js",
+    "dev:worker": "nodemon --config nodemon.worker.json src/workers/classificadorWorker.js",
+    "dev:all": "concurrently -n SERVER,WORKER -c blue,green \"npm run dev\" \"npm run dev:worker\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -22,6 +25,7 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "6.18.0",
+    "amqplib": "^2.0.1",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
+const { gravarLog } = require('../utils/logGrava.js');
 
 class PessoaController {
 
@@ -79,6 +80,7 @@ class PessoaController {
                     usuarioId: pessoa.PessoaId,
                     usuarioTipo: 'PESSOA',
                     usuarioEmail: pessoa.PessoaEmail,
+                    usuarioNome: pessoa.PessoaNome,
                     unidadeId: pessoa.UnidadeId
                 },
                 process.env.JWT_SECRET,
@@ -87,6 +89,12 @@ class PessoaController {
 
             // Retornar dados da pessoa (sem a senha)
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
+
+            // --- Gravar log de login
+            const LogAcao = 'LOGINPESSOA';
+            const LogDetalhe = 'Foi realizado o login pela pessao de ID (' + pessoa.PessoaId + ' | ' + pessoa.PessoaNome + ')';
+            await gravarLog(pessoa.PessoaId, LogAcao, 'PESSOA', LogDetalhe, pessoa.PessoaId);
+            // ---
 
             return res.status(200).json({
                 message: 'Login realizado com sucesso',
@@ -257,6 +265,12 @@ class PessoaController {
             // Remover senha do retorno
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
 
+            // --- Gravar log de criação
+            const LogAcao = 'CRIARPESSOA';
+            const LogDetalhe = 'Foi criada a pessoa de ID (' + pessoaSemSenha.PessoaId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). Dados na criação: ' + JSON.stringify(pessoaSemSenha) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
+            // ---
+
             return res.status(201).json({
                 message: 'Pessoa cadastrada com sucesso',
                 data: pessoaSemSenha
@@ -304,6 +318,7 @@ class PessoaController {
             // Verificar permissões
             let podeAlterar = false;
             let gestorLogado = null;
+            let LogDetalhe = '';
 
             // Caso 1: A própria pessoa alterando seus dados
             if (usuarioLogado.usuarioTipo === 'PESSOA' && usuarioLogado.usuarioId === pessoaId) {
@@ -322,6 +337,8 @@ class PessoaController {
                         error: 'Você não pode alterar sua unidade'
                     });
                 }
+
+                LogDetalhe = 'Foi alterada a pessoa de ID (' + pessoaAlterar.PessoaId + '), pela propria pessoa.';
             }
 
             // Caso 2: Gestor alterando
@@ -360,6 +377,9 @@ class PessoaController {
                 }
 
                 podeAlterar = true;
+
+                LogDetalhe = 'Foi alterada a pessoa de ID (' + pessoaAlterar.PessoaId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + ').';
+
             }
 
             if (!podeAlterar) {
@@ -486,16 +506,23 @@ class PessoaController {
             });
 
             // Remover senha do retorno
-            const { PessoaSenha: _, ...pessoaSemSenha } = pessoaAtualizada;
+            const { PessoaSenha: _1, ...pessoaSemSenha } = pessoaAtualizada;
+            const { PessoaSenha: _2, ...pessoaAntesSemSenha } = pessoaAlterar;
 
-            res.status(200).json({
+            // --- Gravar log de criação
+            const LogAcao = 'ALTERARPESSOA';
+            LogDetalhe = LogDetalhe + ' Dados antes da atualização: (' + JSON.stringify(pessoaAntesSemSenha) + '), dados depois da atualização: (' + JSON.stringify(pessoaSemSenha) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Pessoa atualizada com sucesso',
                 data: pessoaSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao alterar pessoa:', error);
-            res.status(500).json({ error: 'Erro ao alterar pessoa' });
+            return res.status(500).json({ error: 'Erro ao alterar pessoa' });
         }
     }
 
@@ -600,7 +627,7 @@ class PessoaController {
                 return pessoaSemSenha;
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: pessoasSemSenha,
                 paginacao: {
                     paginaAtual,
@@ -612,7 +639,7 @@ class PessoaController {
 
         } catch (error) {
             console.error('Erro ao listar pessoas:', error);
-            res.status(500).json({ error: 'Erro ao listar pessoas' });
+            return res.status(500).json({ error: 'Erro ao listar pessoas' });
         }
     }
 
@@ -681,13 +708,13 @@ class PessoaController {
             // Remover senha do retorno
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: pessoaSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao buscar pessoa:', error);
-            res.status(500).json({ error: 'Erro ao buscar pessoa' });
+            return res.status(500).json({ error: 'Erro ao buscar pessoa' });
         }
     }
 
@@ -800,14 +827,20 @@ class PessoaController {
             // Remover senha do retorno
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoaAtualizada;
 
-            res.status(200).json({
+            // --- Gravar log de alteração de status
+            const LogAcao = 'ALTERARSTATUSPESSOA';
+            const LogDetalhe = 'Foi alterado o status da pessoa de ID: (' + pessoaSemSenha.PessoaId + ' | ' + pessoaSemSenha.PessoaNome + '). De ' + pessoaExistente.PessoaStatus + ' para ' + pessoaSemSenha.PessoaStatus + ' pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Status da pessoa atualizado com sucesso',
                 data: pessoaSemSenha
             });
 
         } catch (error) {
             console.error('Erro ao alterar status da pessoa:', error);
-            res.status(500).json({ error: 'Erro ao alterar status da pessoa' });
+            return res.status(500).json({ error: 'Erro ao alterar status da pessoa' });
         }
     }
 
@@ -874,15 +907,16 @@ class PessoaController {
                 }
             });
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: pessoas
             });
 
         } catch (error) {
             console.error('Erro ao listar pessoas por unidade:', error);
-            res.status(500).json({ error: 'Erro ao listar pessoas por unidade' });
+            return res.status(500).json({ error: 'Erro ao listar pessoas por unidade' });
         }
     }
+    
 }
 
 module.exports = new PessoaController();

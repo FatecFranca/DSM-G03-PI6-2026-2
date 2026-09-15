@@ -46,7 +46,8 @@ class AdminController {
                 {
                     usuarioId: administrador.AdministradorId,
                     usuarioTipo: 'ADMINISTRADOR',
-                    usuarioEmail: administrador.AdministradorUsuario
+                    usuarioEmail: administrador.AdministradorUsuario,
+                    usuarioNome: administrador.AdministradorNome
                 },
                 process.env.JWT_SECRET,
                 { expiresIn: '8h' }
@@ -61,8 +62,8 @@ class AdminController {
 
             // --- Gravar alteração de status de vinculo de unidade e tipo de suporte
             const LogAcao = 'LOGINADMINISTRADOR';
-            const LogDetelhe = 'Foi realizado login polo administrador de ID (' + adminSemSenha.AdministradorId + ')';
-            await gravarLog('', LogAcao, 'SISTEMA', LogDetelhe, String(adminSemSenha.AdministradorId).trim());
+            const LogDetalhe = 'Foi realizado login polo administrador de ID (' + adminSemSenha.AdministradorId + ')';
+            await gravarLog('', LogAcao, 'SISTEMA', LogDetalhe, String(adminSemSenha.AdministradorId).trim());
             // ---
 
             return res.status(200).json({
@@ -164,8 +165,8 @@ class AdminController {
 
             // --- Gravar alteração de status de vinculo de unidade e tipo de suporte
             const LogAcao = 'ALTERARADMINISTRADOR';
-            const LogDetelhe = 'Foram alterados os dados do administrador de ID (' + adminSemSenha.AdministradorId + '), dados antes da alteração (' + JSON.stringify(adminAntesSemSenha) + '), dados depois da alteração (' + JSON.stringify(adminSemSenha) + ')';
-            await gravarLog('', LogAcao, 'SISTEMA', LogDetelhe, String(adminSemSenha.AdministradorId).trim());
+            const LogDetalhe = 'Foram alterados os dados do administrador de ID (' + adminSemSenha.AdministradorId + '), dados antes da alteração (' + JSON.stringify(adminAntesSemSenha) + '), dados depois da alteração (' + JSON.stringify(adminSemSenha) + ')';
+            await gravarLog('', LogAcao, 'SISTEMA', LogDetalhe, String(adminSemSenha.AdministradorId).trim());
             // ---
 
             return res.status(200).json({

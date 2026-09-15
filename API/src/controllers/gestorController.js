@@ -318,6 +318,7 @@ class GestorController {
                     usuarioId: gestor.GestorId,
                     usuarioTipo: 'GESTOR',
                     usuarioEmail: gestor.GestorEmail,
+                    usuarioNome: gestor.GestorNome,
                     unidadeId: gestor.UnidadeId,
                     gestorNivel: gestor.GestorNivel
                 },
@@ -330,8 +331,8 @@ class GestorController {
 
             // --- Gravar log de alteração
             const LogAcao = 'LOGINGESTOR';
-            const LogDetelhe = 'Foi realizado login com o usuário gestor (' + gestorSemSenha.GestorUsuario + ')';
-            await gravarLog('', LogAcao, 'SISTEMA', LogDetelhe, gestorSemSenha.GestorId);
+            const LogDetalhe = 'Foi realizado login com o usuário gestor (' + gestorSemSenha.GestorUsuario + ')';
+            await gravarLog('', LogAcao, 'SISTEMA', LogDetalhe, gestorSemSenha.GestorId);
             // ---
 
             return res.status(200).json({
@@ -545,8 +546,8 @@ class GestorController {
             } else {
                 LogAcao = 'CADASTRARGESTORCOMUM'
             }
-            const LogDetelhe = 'Foi cadastrado o gestor (' + gestorSemSenha.GestorUsuario + ') de ID (' + gestorSemSenha.GestorId + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorSemSenha.GestorId);
+            const LogDetalhe = 'Foi cadastrado o gestor (' + gestorSemSenha.GestorUsuario + ') de ID (' + gestorSemSenha.GestorId + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, gestorSemSenha.GestorId);
             // ---
 
             return res.status(201).json({
@@ -944,8 +945,8 @@ class GestorController {
 
             // --- Gravar log de alteração
             const LogAcao = 'ALTERARGESTOR';
-            const LogDetelhe = 'Foi alterado o Gestor de Usuário Antes da Alteração (' + gestorAntesSemSenhaID.GestorUsuario + ') / Usuário depois da alteração (' + gestorSemSenhaID.GestorUsuario + '), dados antes da alteração (' + JSON.stringify(gestorAntesSemSenhaID) + ')' + ', dados depois da alteração (' + JSON.stringify(gestorSemSenhaID) + ')';
-            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorSemSenha.GestorId);
+            const LogDetalhe = 'Foi alterado o Gestor de Usuário Antes da Alteração (' + gestorAntesSemSenhaID.GestorUsuario + ') / Usuário depois da alteração (' + gestorSemSenhaID.GestorUsuario + '), dados antes da alteração (' + JSON.stringify(gestorAntesSemSenhaID) + ')' + ', dados depois da alteração (' + JSON.stringify(gestorSemSenhaID) + ')';
+            await gravarLog(String(usuarioLogado.usuarioId).trim(), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, gestorSemSenha.GestorId);
             // ---
 
             return res.status(200).json({
@@ -1222,8 +1223,8 @@ class GestorController {
 
             // --- Gravar log de alteração
             const LogAcao = 'ALTERARSTATUSGESTOR';
-            const LogDetelhe = 'Foi alterado o status do Gestor (' + gestorSemSenha.GestorUsuario + '), de (' + gestorAlterar.GestorStatus + ' para ' + gestorSemSenha.GestorStatus + ')';
-            await gravarLog(String(usuarioLogado.usuarioId), LogAcao, usuarioLogado.usuarioTipo, LogDetelhe, gestorAtualizado.GestorId);
+            const LogDetalhe = 'Foi alterado o status do Gestor (' + gestorSemSenha.GestorUsuario + '), de (' + gestorAlterar.GestorStatus + ' para ' + gestorSemSenha.GestorStatus + ')';
+            await gravarLog(String(usuarioLogado.usuarioId), LogAcao, usuarioLogado.usuarioTipo, LogDetalhe, gestorAtualizado.GestorId);
             // ---
 
             return res.status(200).json({

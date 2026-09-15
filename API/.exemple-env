@@ -24,3 +24,5 @@ DOC_API_SERVERS_DESCRIPTIONS=Servidor de tal,Servidor de cal
 CORS_ORIGIN=http://servidor3.com,http://servidor4.com
 
 PYTHON=python
+
+RABBITMQ_URL=amqp://localhost:9999

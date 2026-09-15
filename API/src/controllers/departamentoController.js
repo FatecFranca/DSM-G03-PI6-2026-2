@@ -1,6 +1,7 @@
 // src/controllers/departamentoController.js
 const prisma = require('../prisma.js');
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+const { gravarLog } = require('../utils/logGrava.js');
 
 class DepartamentoController {
 
@@ -103,6 +104,12 @@ class DepartamentoController {
                 }
             });
 
+            // --- Gravar log de criação
+            const LogAcao = 'CRIARDEPARTAMENTO';
+            const LogDetalhe = 'Foi criado o departamento de ID (' + departamento.DepartamentoId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). Dados na criação: ' + JSON.stringify(departamento) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, departamento.DepartamentoId);
+            // ---
+
             return res.status(201).json({
                 message: 'Departamento cadastrado com sucesso',
                 data: departamento
@@ -110,7 +117,7 @@ class DepartamentoController {
 
         } catch (error) {
             console.error('Erro ao cadastrar departamento:', error);
-            res.status(500).json({ error: 'Erro ao cadastrar departamento' });
+            return res.status(500).json({ error: 'Erro ao cadastrar departamento' });
         }
     }
 
@@ -237,14 +244,20 @@ class DepartamentoController {
                 }
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração
+            const LogAcao = 'ALTERARDEPARTAMENTO';
+            const LogDetalhe = 'Foi alterado o departamento de ID (' + departamentoAtualizado.DepartamentoId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). Dados antes da atualização: ' + JSON.stringify(departamentoExistente) + '), dados depois da atualização: ' + JSON.stringify(departamentoAtualizado) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, departamentoAtualizado.DepartamentoId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Departamento atualizado com sucesso',
                 data: departamentoAtualizado
             });
 
         } catch (error) {
             console.error('Erro ao alterar departamento:', error);
-            res.status(500).json({ error: 'Erro ao alterar departamento' });
+            return res.status(500).json({ error: 'Erro ao alterar departamento' });
         }
     }
 
@@ -325,7 +338,7 @@ class DepartamentoController {
                 prisma.departamento.count({ where: filtro })
             ]);
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: departamentos,
                 paginacao: {
                     paginaAtual,
@@ -337,7 +350,7 @@ class DepartamentoController {
 
         } catch (error) {
             console.error('Erro ao listar departamentos:', error);
-            res.status(500).json({ error: 'Erro ao listar departamentos' });
+            return res.status(500).json({ error: 'Erro ao listar departamentos' });
         }
     }
 
@@ -398,13 +411,13 @@ class DepartamentoController {
                 }
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 data: departamento
             });
 
         } catch (error) {
             console.error('Erro ao buscar departamento:', error);
-            res.status(500).json({ error: 'Erro ao buscar departamento' });
+            return res.status(500).json({ error: 'Erro ao buscar departamento' });
         }
     }
 
@@ -505,14 +518,20 @@ class DepartamentoController {
                 }
             });
 
-            res.status(200).json({
+            // --- Gravar log de alteração de status
+            const LogAcao = 'ALTERARSTATUSDEPARTAMENTO';
+            const LogDetalhe = 'Foi alterado status do departamento de ID (' + departamentoAtualizado.DepartamentoId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). De ' + departamentoExistente.DepartamentoStatus + ' para ' + departamentoAtualizado.DepartamentoStatus + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, departamentoAtualizado.DepartamentoId);
+            // ---
+
+            return res.status(200).json({
                 message: 'Status do departamento atualizado com sucesso',
                 data: departamentoAtualizado
             });
 
         } catch (error) {
             console.error('Erro ao alterar status do departamento:', error);
-            res.status(500).json({ error: 'Erro ao alterar status do departamento' });
+            return res.status(500).json({ error: 'Erro ao alterar status do departamento' });
         }
     }
 

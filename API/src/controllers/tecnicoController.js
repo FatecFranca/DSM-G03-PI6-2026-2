@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
+const { gravarLog } = require('../utils/logGrava.js');
+
 
 /**
  * Gera usuário para Técnico
@@ -223,6 +225,7 @@ class TecnicoController {
                     usuarioId: tecnico.TecnicoId,
                     usuarioTipo: 'TECNICO',
                     usuarioEmail: tecnico.TecnicoEmail,
+                    usuarioNome: tecnico.TecnicoNome,
                     unidadeId: tecnico.UnidadeId,
                     departamentoId: tecnico.DepartamentoId
                 },
@@ -232,6 +235,12 @@ class TecnicoController {
 
             // Retornar dados do técnico (sem a senha)
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
+
+            // --- Gravar log de login
+            const LogAcao = 'LOGINTECNICO';
+            const LogDetalhe = 'Foi realizado o login pelo tecnico de ID (' + tecnico.TecnicoId + ' | ' + tecnico.TecnicoUsuario + ')';
+            await gravarLog(tecnico.TecnicoId, LogAcao, 'TECNICO', LogDetalhe, tecnico.TecnicoId);
+            // ---
 
             return res.status(200).json({
                 message: 'Login realizado com sucesso',
@@ -443,6 +452,12 @@ class TecnicoController {
             // Remover senha do retorno
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
 
+            // --- Gravar log de criação
+            const LogAcao = 'CRIARTECNICO';
+            const LogDetalhe = 'Foi criado o tecnico de ID (' + tecnicoSemSenha.TecnicoId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). Dados na criação: ' + JSON.stringify(tecnicoSemSenha) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, tecnicoSemSenha.TecnicoId);
+            // ---
+
             return res.status(201).json({
                 message: 'Técnico cadastrado com sucesso',
                 data: tecnicoSemSenha,
@@ -494,6 +509,7 @@ class TecnicoController {
             // Verificar permissões
             let podeAlterar = false;
             let gestorLogado = null;
+            let LogDetalhe = '';
 
             // Caso 1: O próprio técnico alterando seus dados
             if (usuarioLogado.usuarioTipo === 'TECNICO' && usuarioLogado.usuarioId === tecnicoId) {
@@ -533,6 +549,9 @@ class TecnicoController {
                         error: 'Você não pode alterar seu nome de usuário'
                     });
                 }
+
+                LogDetalhe = 'Foi alterado o técnico de ID (' + tecnicoAlterar.TecnicoId + '), pelo proprio técnico.';
+
             }
 
             // Caso 2: Gestor alterando
@@ -571,6 +590,9 @@ class TecnicoController {
                 }
 
                 podeAlterar = true;
+
+                LogDetalhe = 'Foi alterado o técnico de ID (' + tecnicoAlterar.TecnicoId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + ').';
+
             }
 
             if (!podeAlterar) {
@@ -647,9 +669,9 @@ class TecnicoController {
                 dadosAtualizacao.TecnicoNome = TecnicoNome.trim();
             }
 
-            console.log('TecnicoEmail = ', TecnicoEmail);
-            console.log('TecnicoTelefone = ', TecnicoEmail);
-            console.log('req.body = ', req.body);
+            //console.log('TecnicoEmail = ', TecnicoEmail);
+            //console.log('TecnicoTelefone = ', TecnicoEmail);
+            //console.log('req.body = ', req.body);
 
             // Email
             if (TecnicoEmail !== undefined) {
@@ -794,7 +816,14 @@ class TecnicoController {
             });
 
             // Remover senha do retorno
-            const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnicoAtualizado;
+            const { TecnicoSenha: _1, ...tecnicoSemSenha } = tecnicoAtualizado;
+            const { TecnicoSenha: _2, ...tecnicoAlterarSemSenha } = tecnicoAlterar;
+
+            // --- Gravar log de criação
+            const LogAcao = 'ALTERARTECNICO';
+            LogDetalhe = LogDetalhe + ' Dados antes da atualização: (' + JSON.stringify(tecnicoAlterarSemSenha) + '), dados depois da atualização: (' + JSON.stringify(tecnicoSemSenha) + ')';
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
+            // ---
 
             return res.status(200).json({
                 message: 'Técnico atualizado com sucesso',
@@ -1165,6 +1194,12 @@ class TecnicoController {
 
             // Remover senha do retorno
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnicoAtualizado;
+
+            // --- Gravar log de alteração de status
+            const LogAcao = 'ALTERARSTATUSTECNICO';
+            const LogDetalhe = 'Foi alterado o status do tecnico de ID (' + tecnicoSemSenha.TecnicoId + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + '). De ' + tecnicoExistente.TecnicoStatus + ' para ' + tecnicoSemSenha.TecnicoStatus;
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, tecnicoSemSenha.TecnicoId);
+            // ---
 
             return res.status(200).json({
                 message: 'Status do técnico atualizado com sucesso',

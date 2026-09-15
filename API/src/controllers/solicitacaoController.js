@@ -13,9 +13,7 @@ const tiposValidosGestorAdm = ['CADASTROPESSOAUNIDADE', 'ALTERACAODADOSPESSOA', 
 
 class SolicitacaoController {
 
-    // =============================================
-    // ABRIR SOLICITAÇÃO (PÚBLICO - NÃO EXIGE LOGIN)
-    // =============================================
+    // Abrir solicitação (Público - não exige login)
     async abrirSolicitacao(req, res) {
         try {
             const {
@@ -215,9 +213,7 @@ class SolicitacaoController {
         }
     }
 
-    // =============================================
-    // LISTAR SOLICITAÇÕES (GESTOR/ADMIN)
-    // =============================================
+    // Listtar solcitações (Gestor/Admin)
     async listarSolicitacoes(req, res) {
         try {
             const {
@@ -372,9 +368,7 @@ class SolicitacaoController {
         }
     }
 
-    // =============================================
-    // BUSCAR SOLICITAÇÃO POR ID (SOLICITANTE)
-    // =============================================
+    // Buscar solicitação por usuário (Exige um tipo de usuário logado)
     async listarSolicitacoesPorUsuario(req, res) {
         try {
             const usuarioLogado = req.usuario;
@@ -382,7 +376,7 @@ class SolicitacaoController {
             // Verificar se o usuário é GESTOR ou ADMINISTRADOR
             if (usuarioLogado.usuarioTipo !== 'ADMINISTRADOR' && usuarioLogado.usuarioTipo !== 'GESTOR' && usuarioLogado.usuarioTipo !== 'PESSOA' && usuarioLogado.usuarioTipo !== 'TECNICO') {
                 return res.status(403).json({
-                    error: 'Usuário precisa estarlogado para ver suas solicitações'
+                    error: 'Usuário precisa estar logado para ver suas solicitações'
                 });
             }
 
@@ -422,9 +416,7 @@ class SolicitacaoController {
         }
     }
 
-    // =============================================
-    // BUSCAR SOLICITAÇÃO POR ID (SOLICITANTE)
-    // =============================================
+    // Buscar solicitação por ID (Exige um tipo de usuário logado)
     async buscarSolicitacaoPorId(req, res) {
         try {
             let id = req.params.id;
@@ -504,9 +496,7 @@ class SolicitacaoController {
         }
     }
 
-    // =============================================
-    // ALTERAR STATUS DA SOLICITAÇÃO (GESTOR/ADMIN)
-    // =============================================
+    // Alterar status da solcitação (Gestor/Admin)
     async alterarStatusSolicitacao(req, res) {
         try {
             const { id } = req.params;
