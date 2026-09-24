@@ -21,7 +21,7 @@ async function atualizarChamadoComClassificacao(chamadoId, classificacao) {
     }
 
     // Verificar se o chamado ainda está em um status que permite classificação
-    const statusPermitidos = ['PROCESSAMENTO', 'FALTAINFORMACAO'];
+    const statusPermitidos = ['PROCESSAMENTO', 'FALTAINFORMACAO', 'PENDENTE'];
     if (!statusPermitidos.includes(chamadoAntes.ChamadoStatus)) {
         console.log(`⚠️ Chamado ${chamadoId} está com status ${chamadoAntes.ChamadoStatus}, não será atualizado`);
         // --- Gravar de falha na atualização de urgencia

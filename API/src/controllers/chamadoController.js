@@ -16,10 +16,6 @@ class ChamadoController {
             const {
                 ChamadoDescricaoInicial,
                 ChamadoDiasComProblema
-                //ChamadoRiscoVidaHumana,
-                //ChamadoRiscoVidaAnimal,
-                //ChamadoBloqueioVia,
-                //TipSupId
             } = req.body;
             const usuarioLogado = req.usuario;
 
@@ -28,30 +24,11 @@ class ChamadoController {
             }
 
             // Aceita 0 dias com problema 20260913
-            console.log('ChamadoDiasComProblema = ', ChamadoDiasComProblema);
+            //console.log('ChamadoDiasComProblema = ', ChamadoDiasComProblema);
             if (isNaN(parseInt(ChamadoDiasComProblema)) || parseInt(ChamadoDiasComProblema) < 0) {
                 console.log('Aqui');
                 return res.status(400).json({ error: 'Dias com problemas deve ser maior ou igual a um' });
             }
-
-            // Não mais necessário informa os dados, PLN detectará
-            /*
-            if (!TipSupId || isNaN(parseInt(TipSupId)) || parseInt(TipSupId) <= 0) {
-                return res.status(400).json({ error: 'Tipo de suporte é obrigatório' });
-            }
-
-            if (ChamadoRiscoVidaHumana === undefined || typeof ChamadoRiscoVidaHumana !== 'boolean') {
-                return res.status(400).json({ error: 'Risco de vida humana é obrigatório' });
-            }
-
-            if (ChamadoRiscoVidaAnimal === undefined || typeof ChamadoRiscoVidaAnimal !== 'boolean') {
-                return res.status(400).json({ error: 'Risco de vida animal é obrigatório' });
-            }
-
-            if (ChamadoBloqueioVia === undefined || typeof ChamadoBloqueioVia !== 'boolean') {
-                return res.status(400).json({ error: 'Via bloqueada é obrigatório' });
-            }
-            */
 
             // Verificar se o usuário é PESSOA
             if (usuarioLogado.usuarioTipo !== 'PESSOA') {
@@ -132,37 +109,6 @@ class ChamadoController {
             }
 
             //console.log(`Próximo número: ${proximoN1} - ${proximoN2}`);
-
-            // Verificar se o tipo de suporte existe e tem vinculo com a unidade
-            /*
-            const tipoSuporte = await prisma.tipoSuporte.findFirst({
-                where: {
-                    TipSupId: parseInt(TipSupId),
-                    TipSupStatus: 'ATIVO'
-                }
-            });
-            
-
-            if (!tipoSuporte) {
-                return res.status(404).json({
-                    error: 'Tipo de suporte não encontrado, está inativo'
-                });
-            }
-
-            const tipoSuporteUni = await prisma.tipoSuporteUnidade.findFirst({
-                where: {
-                    TipSupId: parseInt(TipSupId),
-                    UnidadeId: parseInt(UnidadeId),
-                    TipSupUniStatus: 'ATIVO'
-                }
-            });
-
-            if (!tipoSuporteUni) {
-                return res.status(404).json({
-                    error: 'Tipo de suporte não tem vinculo com a unidade ou está inativo'
-                });
-            }
-            */
 
             //console.log('Body = ', req.body);
             //console.log('UnidadeId = ', UnidadeId);
@@ -263,10 +209,10 @@ class ChamadoController {
                 ChamadoDescricaoInicial,
                 ChamadoPrioridade,
                 ChamadoUrgencia,
-                ChamadoDiasComProblema
-                //ChamadoRiscoVidaHumana,
-                //ChamadoRiscoVidaAnimal,
-                //ChamadoBloqueioVia,
+                ChamadoDiasComProblema,
+                ChamadoRiscoVidaHumana,
+                ChamadoRiscoVidaAnimal,
+                ChamadoBloqueioVia,
             } = req.body;
 
             const usuarioLogado = req.usuario;
@@ -304,6 +250,8 @@ class ChamadoController {
                 return res.status(404).json({ error: 'Chamado não encontrado, ou com status não permitido para alteração' });
             }
 
+            let UnidadeId = chamadoExistente.UnidadeId;
+
             // Verificar permissões
             let podeAlterar = false;
             let tipoAcesso = '';
@@ -340,42 +288,11 @@ class ChamadoController {
                     if (isNaN(parseInt(ChamadoDiasComProblema)) || parseInt(ChamadoDiasComProblema) < 0) {
                         return res.status(400).json({ error: 'Dias com problemas deve ser maior ou igual a zero' });
                     } else {
-                        // Verificar se o valor mudou para reclassificar
-                        if (chamadoExistente.ChamadoDiasComProblema !== parseInt(ChamadoDiasComProblema)) {
-                            precisaReclassificar = true;
-                        }
+                        precisaReclassificar = true;
+                        dadosAtualizacao.ChamadoDescricaoInicial = ChamadoDescricaoInicial;
                         dadosAtualizacao.ChamadoDiasComProblema = parseInt(ChamadoDiasComProblema);
+                        dadosAtualizacao.ChamadoDescricaoFormatada = '' // Limpar descrição formatada que antes estava com o motivo da recusa
                     }
-
-                    // PLN irá identificar os dados
-                    /*
-                    if (ChamadoRiscoVidaHumana === undefined || typeof ChamadoRiscoVidaHumana !== 'boolean') {
-                        return res.status(400).json({ error: 'Risco de vida humana é obrigatório' });
-                    } else {
-                        if (chamadoExistente.ChamadoRiscoVidaHumana !== ChamadoRiscoVidaHumana) {
-                            precisaReclassificar = true;
-                        }
-                        dadosAtualizacao.ChamadoRiscoVidaHumana = ChamadoRiscoVidaHumana;
-                    }
-
-                    if (ChamadoRiscoVidaAnimal === undefined || typeof ChamadoRiscoVidaAnimal !== 'boolean') {
-                        return res.status(400).json({ error: 'Risco de vida animal é obrigatório' });
-                    } else {
-                        if (chamadoExistente.ChamadoRiscoVidaAnimal !== ChamadoRiscoVidaAnimal) {
-                            precisaReclassificar = true;
-                        }
-                        dadosAtualizacao.ChamadoRiscoVidaAnimal = ChamadoRiscoVidaAnimal;
-                    }
-
-                    if (ChamadoBloqueioVia === undefined || typeof ChamadoBloqueioVia !== 'boolean') {
-                        return res.status(400).json({ error: 'Via bloqueada é obrigatório' });
-                    } else {
-                        if (chamadoExistente.ChamadoBloqueioVia !== ChamadoBloqueioVia) {
-                            precisaReclassificar = true;
-                        }
-                        dadosAtualizacao.ChamadoBloqueioVia = ChamadoBloqueioVia;
-                    }
-                    */
 
                     // Set status for FALTAINFORMACAO, volta para PROCESSAMENTO para nova análise
                     if (chamadoExistente.ChamadoStatus === 'FALTAINFORMACAO') {
@@ -401,34 +318,44 @@ class ChamadoController {
                         error: 'Você não tem permissão para alterar os dados deste chamado por causa do seu status'
                     });
                 }
+
+                //console.log('*****************************************************************');
+                //console.log('ChamadoRiscoVidaHumana = ', ChamadoRiscoVidaHumana);
+                if (ChamadoRiscoVidaHumana === undefined || (ChamadoRiscoVidaHumana !== 'true' && ChamadoRiscoVidaHumana !== 'false' && ChamadoRiscoVidaHumana !== false && ChamadoRiscoVidaHumana !== true)) {
+                    return res.status(400).json({ error: 'Risco de vida humana é obrigatório' });
+                } else {
+                    if (ChamadoRiscoVidaHumana === 'true' || ChamadoRiscoVidaHumana === true) {
+                        dadosAtualizacao.ChamadoRiscoVidaHumana = true;
+                    } else {
+                        dadosAtualizacao.ChamadoRiscoVidaHumana = false;
+                    }
+                }
+
+                if (ChamadoRiscoVidaAnimal === undefined || (ChamadoRiscoVidaAnimal !== 'true' && ChamadoRiscoVidaAnimal !== 'false' && ChamadoRiscoVidaAnimal !== false && ChamadoRiscoVidaAnimal !== true)) {
+                    return res.status(400).json({ error: 'Risco de vida animal é obrigatório' });
+                } else {
+                    if (ChamadoRiscoVidaAnimal === 'true' || ChamadoRiscoVidaAnimal === true) {
+                        dadosAtualizacao.ChamadoRiscoVidaAnimal = true;
+                    } else {
+                        dadosAtualizacao.ChamadoRiscoVidaAnimal = false;
+                    }
+                }
+
+                if (ChamadoBloqueioVia === undefined || (ChamadoBloqueioVia !== 'true' && ChamadoBloqueioVia !== 'false' && ChamadoBloqueioVia !== false && ChamadoBloqueioVia !== true)) {
+                    return res.status(400).json({ error: 'Via bloqueada é obrigatório' });
+                } else {
+                    if (ChamadoBloqueioVia === 'true' || ChamadoBloqueioVia === true) {
+                        dadosAtualizacao.ChamadoBloqueioVia = true;
+                    } else {
+                        dadosAtualizacao.ChamadoBloqueioVia = false;
+                    }
+                }
             }
 
             if (!podeAlterar) {
                 return res.status(403).json({
                     error: 'Você não tem permissão para alterar este chamado'
                 });
-            }
-
-            // Se for pessoa e houver alteração nos campos de classificação, preparar dados
-            if (tipoAcesso === 'PESSOA' && precisaReclassificar) {
-                // Buscar o tipo de suporte atual do chamado
-                const tipSupIdAtual = dadosAtualizacao.TipSupId || chamadoExistente.TipSupId;
-
-                dadosParaReclassificacao = {
-                    dias_problema: dadosAtualizacao.ChamadoDiasComProblema || chamadoExistente.ChamadoDiasComProblema,
-                    risco_vida_humana: dadosAtualizacao.ChamadoRiscoVidaHumana !== undefined ?
-                        (dadosAtualizacao.ChamadoRiscoVidaHumana ? 1 : 0) :
-                        (chamadoExistente.ChamadoRiscoVidaHumana ? 1 : 0),
-                    risco_vida_animal: dadosAtualizacao.ChamadoRiscoVidaAnimal !== undefined ?
-                        (dadosAtualizacao.ChamadoRiscoVidaAnimal ? 1 : 0) :
-                        (chamadoExistente.ChamadoRiscoVidaAnimal ? 1 : 0),
-                    bloqueio_via: dadosAtualizacao.ChamadoBloqueioVia !== undefined ?
-                        (dadosAtualizacao.ChamadoBloqueioVia ? 1 : 0) :
-                        (chamadoExistente.ChamadoBloqueioVia ? 1 : 0),
-                    tipo_chamanado: tipSupIdAtual
-                };
-
-                //console.log(`🔄 Chamado ${chamadoId} será reclassificado devido a alterações nos campos de classificação`);
             }
 
             // Validar e adicionar campos de acordo com o tipo de acesso
@@ -466,24 +393,6 @@ class ChamadoController {
                     }
                 }
                 dadosAtualizacao.TipSupId = TipSupId ? parseInt(TipSupId) : null;
-
-                // Se o tipo de suporte mudou e é gestor, também pode precisar reclassificar
-                if (chamadoExistente.TipSupId !== parseInt(TipSupId)) {
-                    precisaReclassificar = true;
-                    dadosParaReclassificacao = {
-                        dias_problema: dadosAtualizacao.ChamadoDiasComProblema || chamadoExistente.ChamadoDiasComProblema,
-                        risco_vida_humana: dadosAtualizacao.ChamadoRiscoVidaHumana !== undefined ?
-                            (dadosAtualizacao.ChamadoRiscoVidaHumana ? 1 : 0) :
-                            (chamadoExistente.ChamadoRiscoVidaHumana ? 1 : 0),
-                        risco_vida_animal: dadosAtualizacao.ChamadoRiscoVidaAnimal !== undefined ?
-                            (dadosAtualizacao.ChamadoRiscoVidaAnimal ? 1 : 0) :
-                            (chamadoExistente.ChamadoRiscoVidaAnimal ? 1 : 0),
-                        bloqueio_via: dadosAtualizacao.ChamadoBloqueioVia !== undefined ?
-                            (dadosAtualizacao.ChamadoBloqueioVia ? 1 : 0) :
-                            (chamadoExistente.ChamadoBloqueioVia ? 1 : 0),
-                        tipo_chamanado: TipSupId
-                    };
-                }
             }
 
             //console.log('EquipeId = ', EquipeId);
@@ -506,8 +415,6 @@ class ChamadoController {
                 dadosAtualizacao.EquipeId = EquipeId;
             }
 
-            // Verificar se o status está como em atendimento, se sim não permite alteração
-            //if (chamadoExistente.ChamadoStatus === 'EMATENDIMENTO' && !dadosAtualizacao.EquipeId && !chamadoExistente.EquipeId) {
             if (chamadoExistente.ChamadoStatus === 'EMATENDIMENTO') {
                 return res.status(400).json({
                     error: 'Chamados em atendimento, não permitido alteração'
@@ -522,11 +429,6 @@ class ChamadoController {
                 // Gestor altera a descrição formatada
                 if (tipoAcesso === 'GESTOR') {
                     dadosAtualizacao.ChamadoDescricaoFormatada = ChamadoDescricaoInicial.trim();
-                } else if (chamadoExistente.ChamadoStatus === 'PENDENTE' || chamadoExistente.ChamadoStatus === 'FALTAINFORMACAO') {
-                    if (chamadoExistente.ChamadoDescricaoInicial !== ChamadoDescricaoInicial.trim()) {
-                        dadosAtualizacao.ChamadoDescricaoInicial = ChamadoDescricaoInicial.trim();
-                        precisaReclassificar = true;
-                    }
                 }
             } else if (ChamadoDescricaoInicial !== undefined && ChamadoDescricaoInicial.trim() === '') {
                 if (tipoAcesso !== 'GESTOR') {
@@ -607,8 +509,39 @@ class ChamadoController {
                 reclassificacao_solicitada: precisaReclassificar || false
             });
 
+            // Se for pessoa que alterou, sempre reprocessa
+            if (tipoAcesso === 'PESSOA') {
+                precisaReclassificar = true;
+                dadosParaReclassificacao = {
+                    dias_problema: parseInt(ChamadoDiasComProblema) || chamadoExistente.ChamadoDiasComProblema,
+                    descricao: ChamadoDescricaoInicial?.trim() || chamadoExistente.ChamadoDescricaoInicial,
+                };
+            }
+
             // ========== PROCESSAR RECLASSIFICAÇÃO EM BACKGROUND ==========
+            console.log('precisaReclassificar = ' + precisaReclassificar + ' dadosParaReclassificacao = ' + dadosParaReclassificacao);
             if (precisaReclassificar && dadosParaReclassificacao) {
+
+                // Registra histórico do chamado (GESTOR/TECNICO)
+                await prisma.historicoChamado.create({
+                    data: {
+                        ChamadoId: chamadoAtualizado.ChamadoId,
+                        HistChamadoDescricao: 'Chamado foi alterado pelo cidadão e reprocessado',
+                        HistChamadoDt: getBrasilDateTime(),
+                        HistChamadoUsuarioVer: 'GESTEC'
+                    }
+                });
+
+                // Registra histórico do chamado (PESSOA)
+                await prisma.historicoChamado.create({
+                    data: {
+                        ChamadoId: chamadoAtualizado.ChamadoId,
+                        HistChamadoDescricao: 'Chamado foi alterado pelo cidadão e reprocessado',
+                        HistChamadoDt: getBrasilDateTime(),
+                        HistChamadoUsuarioVer: 'PESSOA'
+                    }
+                });
+
                 console.log(`🔄 Iniciando reclassificação em background para chamado ${chamadoId}...`);
 
                 // ✅ Usar o serviço com RabbitMQ
@@ -1251,6 +1184,7 @@ class ChamadoController {
                 chamado.ChamadoStatus !== 'CANCELADO' &&
                 chamado.ChamadoStatus !== 'RECUSADO') {
                 dadosAtualizacao.ChamadoDtEncerramento = new Date();
+                dadosAtualizacao.ChamadoUrgencia = null;
             }
 
             // Se for recusar, informar motivo na descrição formatada
@@ -1261,6 +1195,7 @@ class ChamadoController {
                     });
                 }
                 dadosAtualizacao.ChamadoDescricaoFormatada = ChamadoDescricaoFormatada.trim();
+                dadosAtualizacao.ChamadoUrgencia = null;
             }
 
             // Se for do status FALTAINFORMACAO para outro, limpar a descrição formatada
@@ -1437,10 +1372,10 @@ class ChamadoController {
 
             // Construir filtro base
             const filtro = {
-                ChamadoDtAbertura: {
-                    gte: dataInicio,
-                    lte: dataFim
-                }
+                //ChamadoDtAbertura: {
+                //    gte: dataInicio,
+                //    lte: dataFim
+                //}
             };
 
             // Aplicar filtros de acordo com permissão
@@ -1514,7 +1449,8 @@ class ChamadoController {
                 totalChamados,
                 porStatus,
                 porUrgencia,
-                chamadosConcluidos
+                chamadosConcluidos,
+                porUrgenciaFechados
             ] = await Promise.all([
                 // Total de chamados no período
                 prisma.chamado.count({ where: filtro }),
@@ -1531,7 +1467,7 @@ class ChamadoController {
                     by: ['ChamadoUrgencia'],
                     where: {
                         ...filtro,
-                        ChamadoUrgencia: { not: null }, ChamadoStatus: { not: 'CANCELADO', not: 'RECUSADO' }
+                        ChamadoUrgencia: { not: null }
                     },
                     _count: true
                 }),
@@ -1547,7 +1483,17 @@ class ChamadoController {
                         ChamadoDtAbertura: true,
                         ChamadoDtEncerramento: true
                     }
-                })
+                }),
+
+                // Chamados por urgência
+                prisma.chamado.groupBy({
+                    by: ['ChamadoUrgencia'],
+                    where: {
+                        ...filtro,
+                        ChamadoUrgencia: { not: null }, ChamadoStatus: { in: ['CANCELADO', 'RECUSADO', 'CONCLUIDO', 'FALTAINFORMACAO'] }
+                    },
+                    _count: true
+                }),
             ]);
 
             // Calcular tempo médio de resolução (em horas)
@@ -1587,8 +1533,12 @@ class ChamadoController {
                 porUrgencia: porUrgencia.reduce((acc, curr) => {
                     acc[curr.ChamadoUrgencia] = curr._count;
                     return acc;
+                }, {}),
+                porUrgenciaFechados: porUrgenciaFechados.reduce((acc, curr) => {
+                    acc[curr.ChamadoUrgencia] = curr._count;
+                    return acc;
                 }, {})
-            }
+            };
 
             //console.log('data = ', data);
 

@@ -108,6 +108,10 @@ export default function EditarChamadoPage() {
 
       updateData.ChamadoDescricaoInicial = formData.ChamadoDescricaoFormatada;
 
+      updateData.ChamadoRiscoVidaAnimal = formData.ChamadoRiscoVidaAnimal;
+      updateData.ChamadoBloqueioVia = formData.ChamadoBloqueioVia;
+      updateData.ChamadoRiscoVidaHumana = formData.ChamadoRiscoVidaHumana;
+
       if (formData.TipSupId !== (chamado?.TipSupId?.toString() || "")) {
         updateData.TipSupId = formData.TipSupId ? parseInt(formData.TipSupId) : null;
       }
@@ -308,7 +312,6 @@ export default function EditarChamadoPage() {
                 value={formData.TipSupId}
                 onChange={(e) => handleInputChange('TipSupId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled
               >
                 <option value="">Selecione um tipo de suporte</option>
                 {tiposSuporte.map((tipo) => (
@@ -335,10 +338,9 @@ export default function EditarChamadoPage() {
                 Ocasiona Rico a Vidas Humanas?
               </label>
               <select
-                value={formData.ChamadoRiscoVidaHumana ? 'SIM' : 'NAO'}
+                value={formData.ChamadoRiscoVidaHumana ? 'true' : 'false'}
                 onChange={(e) => handleInputChange('ChamadoRiscoVidaHumana', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled
               >
                 <option value="true">Sim</option>
                 <option value="false">Não</option>
@@ -352,10 +354,9 @@ export default function EditarChamadoPage() {
                 Ocasiona Rico a Vidas de Animais?
               </label>
               <select
-                value={formData.ChamadoRiscoVidaAnimal ? 'SIM' : 'NAO'}
+                value={formData.ChamadoRiscoVidaAnimal ? 'true' : 'false'}
                 onChange={(e) => handleInputChange('ChamadoRiscoVidaAnimal', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled
               >
                 <option value="true">Sim</option>
                 <option value="false">Não</option>
@@ -369,10 +370,9 @@ export default function EditarChamadoPage() {
                 Via/Rua está bloqueada pelo problema?
               </label>
               <select
-                value={formData.ChamadoBloqueioVia ? 'SIM' : 'NAO'}
+                value={formData.ChamadoBloqueioVia ? 'true' : 'false'}
                 onChange={(e) => handleInputChange('ChamadoBloqueioVia', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled
               >
                 <option value="true">Sim</option>
                 <option value="false">Não</option>

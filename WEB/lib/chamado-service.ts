@@ -91,6 +91,7 @@ export interface Estatisticas {
   total: number;
   porStatus: Record<string, number>;
   porUrgencia: Record<string, number>;
+  porUrgenciaFechados: Record<string, number>;
 }
 
 export async function listarChamados(filters: ChamadoFilters = {}): Promise<ListaChamadosResponse> {

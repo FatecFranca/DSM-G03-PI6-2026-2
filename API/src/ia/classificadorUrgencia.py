@@ -64,6 +64,13 @@ class ExtratorDadosChamado:
             # "socorro urgente"
             [{"LOWER": "socorro"}, {"LOWER": "urgente"}],
             [{"LOWER": "emergencia"}],
+            [{"LOWER": {"IN": ["fio", "fios", "cabo", "cabos", "fiacao", "fiação", "rede", "redes"]}}, {"LOWER": {"IN": ["caido", "caído", "caindo", "soltos", "soltas", "expostos", "expostas", "no", "na", "sobre"]}}],
+            [{"LOWER": {"IN": ["fio", "fios", "cabo", "cabos"]}}, {"LOWER": {"IN": ["energizado", "energizados", "energizada", "energizadas", "com", "sem"]}}],
+            [{"LOWER": {"IN": ["risco", "perigo"]}}, {"LOWER": "de"}, {"LOWER": "choque"}],
+            [{"LOWER": {"IN": ["pode", "vai"]}}, {"LOWER": {"IN": ["levar", "tomar"]}}, {"LOWER": "choque"}],
+            [{"LOWER": "eletrocutado"}],
+            [{"LOWER": "eletrocutada"}],
+            [{"LOWER": {"IN": ["choque", "eletrico", "elétrico"]}}],
         ])
         
         # Padrão: [pessoa/criança/idoso] + [contexto de risco]
@@ -89,32 +96,66 @@ class ExtratorDadosChamado:
         ])
         
         # =============================================
-        # PADRÕES PARA BLOQUEIO DE VIA
+        # PADRÕES PARA BLOQUEIO DE VIA (ATUALIZADO)
         # =============================================
         self.matcher.add("BLOQUEIO_VIA", [
             # "rua bloqueada", "via interditada", "estrada fechada"
-            [{"LOWER": {"IN": ["rua", "avenida", "via", "estrada", "rodovia", "travessa", "alameda", "praca", "praça"]}},
-             {"LOWER": {"IN": ["bloqueada", "bloqueado", "interditada", "interditado", "fechada", "fechado"]}}],
+            [{"LOWER": {"IN": ["rua", "avenida", "via", "estrada", "rodovia", "travessa", "alameda", "praca", "praça", "pista", "calcada", "calçada"]}},
+            {"LOWER": {"IN": ["bloqueada", "bloqueado", "interditada", "interditado", "fechada", "fechado", "obstruida", "obstruído"]}}],
+            
             # "bloqueio total", "bloqueio parcial"
-            [{"LOWER": "bloqueio"}, {"LOWER": {"IN": ["total", "parcial"]}}],
-            # "não consigo passar", "impossível passar"
-            [{"LOWER": {"IN": ["nao", "não"]}}, {"LOWER": "consigo"}, {"LOWER": "passar"}],
-            [{"LOWER": "impossivel"}, {"LOWER": "passar"}],
-            [{"LOWER": "impossível"}, {"LOWER": "passar"}],
-            # "árvore caída", "árvore na via"
-            [{"LOWER": {"IN": ["arvore", "árvore"]}},
-             {"LOWER": {"IN": ["caida", "caída", "caiu", "na", "sobre"]}}],
-            # "buraco na via"
-            [{"LOWER": "buraco"}, {"LOWER": {"IN": ["na", "em"]}}, {"LOWER": {"IN": ["via", "rua", "avenida"]}}],
-            # "alagamento", "enchente", "inundação"
-            [{"LOWER": {"IN": ["alagamento", "alagado", "enchente", "inundacao", "inundação", "deslizamento", "desmoronamento"]}}],
+            [{"LOWER": "bloqueio"}, {"LOWER": {"IN": ["total", "parcial", "da", "de", "na", "no"]}}],
+            
+            # "não consigo passar", "impossível passar", "não dá para passar"
+            [{"LOWER": {"IN": ["nao", "não"]}}, {"LOWER": {"IN": ["consigo", "da", "dá", "consegue", "conseguem"]}}, {"LOWER": "passar"}],
+            [{"LOWER": {"IN": ["impossivel", "impossível"]}}, {"LOWER": "passar"}],
+            [{"LOWER": "sem"}, {"LOWER": "passagem"}],
+            
+            # "árvore caída", "árvore na via", "galho na pista"
+            [{"LOWER": {"IN": ["arvore", "árvore", "galho", "galhos", "tronco", "tocos", "toco"]}},
+            {"LOWER": {"IN": ["caida", "caída", "caiu", "na", "no", "sobre", "em", "pela", "pelo"]}}],
+            
+            # "buraco na via", "cratera na rua"
+            [{"LOWER": {"IN": ["buraco", "cratera", "erosao", "erosão", "afundamento"]}},
+            {"LOWER": {"IN": ["na", "no", "em", "pela", "pelo"]}},
+            {"LOWER": {"IN": ["via", "rua", "avenida", "estrada", "rodovia", "pista", "calcada", "calçada"]}}],
+            
+            # ✅ NOVOS PADRÕES - IMPEDIMENTO DE PASSAGEM
+            # "impedindo a passagem", "impede a passagem", "impedindo o trânsito"
+            [{"LOWER": {"IN": ["impedindo", "impede", "impedem", "impediu", "impedir"]}},
+            {"LOWER": {"IN": ["a", "o", "as", "os"]}},
+            {"LOWER": {"IN": ["passagem", "transito", "trânsito", "circulacao", "circulação", "acesso", "trafego", "tráfego"]}}],
+            
+            # "impedindo a passagem dos veículos", "impedindo o trânsito de carros"
+            [{"LOWER": {"IN": ["impedindo", "impede", "impedem"]}},
+            {"LOWER": {"IN": ["a", "o"]}},
+            {"LOWER": {"IN": ["passagem", "transito", "trânsito"]}},
+            {"LOWER": {"IN": ["de", "dos", "das", "do", "da"]}}],
+            
+            # "bloqueando a via", "bloqueando a rua", "obstruindo a passagem"
+            [{"LOWER": {"IN": ["bloqueando", "bloqueia", "bloqueiam", "obstruindo", "obstrui", "obstruem", "fechando", "fecha"]}},
+            {"LOWER": {"IN": ["a", "o", "as", "os"]}},
+            {"LOWER": {"IN": ["via", "rua", "avenida", "estrada", "rodovia", "pista", "passagem", "transito", "trânsito", "acesso"]}}],
+            
+            # "atrapalhando o trânsito", "atrapalhando a passagem"
+            [{"LOWER": {"IN": ["atrapalhando", "atrapalha", "atrapalham", "prejudicando", "prejudica"]}},
+            {"LOWER": {"IN": ["o", "a", "os", "as"]}},
+            {"LOWER": {"IN": ["transito", "trânsito", "passagem", "circulacao", "circulação", "acesso"]}}],
+            
+            # "carros não conseguem passar", "veículos não conseguem passar"
+            [{"LOWER": {"IN": ["carros", "carro", "veiculos", "veículos", "onibus", "ônibus", "caminhao", "caminhão"]}},
+            {"LOWER": {"IN": ["nao", "não"]}},
+            {"LOWER": {"IN": ["conseguem", "consegue", "podem", "pode"]}},
+            {"LOWER": {"IN": ["passar", "transitar", "circular", "seguir"]}}],
+            
+            # "via obstruída", "passagem obstruída"
+            [{"LOWER": {"IN": ["via", "rua", "avenida", "passagem", "acesso", "pista"]}},
+            {"LOWER": {"IN": ["obstruida", "obstruída", "obstruido", "obstruído", "impedida", "impedido", "interrompida", "interrompido"]}}],
+            
+            # "alagamento", "enchente", "inundação", "deslizamento", "desmoronamento"
+            [{"LOWER": {"IN": ["alagamento", "alagado", "alagada", "enchente", "inundacao", "inundação", "deslizamento", "desmoronamento", "queda"]}}],
         ])
         
-        # =============================================
-        # FRASES PARA TIPO DE CHAMADO (PhraseMatcher)
-        # =============================================
-        # Tipos: 1=Iluminação, 2=Buracos/Vias, 3=Limpeza, 4=Saneamento, 5=Segurança,
-        #        6=Meio Ambiente, 7=Saúde, 8=Educação, 9=Transporte, 10=Obras
         
         # =============================================
         # TIPOS DE CHAMADO - PALAVRAS-CHAVE
@@ -200,18 +241,41 @@ class ExtratorDadosChamado:
                 "lampada do poste sem luminosidade", "lâmpada do poste sem luminosidade"
             ],
             
-            # 7 - Poste Caído
+            # 7 - Poste Caído (com variações de ordem)
             7: [
+                # Ordem direta: "poste caído", "poste caiu"
                 "poste caido", "poste caído", "poste caiu", "poste caindo",
-                "poste no chao", "poste no chão", "poste no solo", "poste no chão",
+                "poste no chao", "poste no chão", "poste no solo",
                 "poste derrubado", "poste derrubada", "poste tombado", "poste tombada",
-                "poste deitado", "poste deitada", "poste deitado no chao", "poste deitado no chão",
-                "poste deitada no chao", "poste deitada no chão", "poste caiu na rua",
-                "poste caiu na calçada", "poste caiu na calcada", "poste caiu na via",
-                "poste caiu na avenida", "poste caiu na estrada", "poste caiu na rodovia",
-                "poste caiu no chao", "poste caiu no chão", "poste caiu no solo",
-                "poste caiu em cima", "poste caiu sobre", "poste caiu em cima de",
-                "poste caiu sobre", "poste caiu em cima do carro", "poste caiu sobre o carro",
+                "poste deitado", "poste deitada",
+                
+                # ✅ Ordem invertida: "caiu um poste", "caiu o poste"
+                "caiu um poste", "caiu o poste", "caiu poste", "caiu um poste na",
+                "caiu o poste na", "caiu poste na", "caiu um poste em", "caiu o poste em",
+                "caiu um poste no", "caiu o poste no", "caiu poste no",
+                "caiu um poste sobre", "caiu o poste sobre", "caiu poste sobre",
+                "caiu um poste em cima", "caiu o poste em cima", "caiu poste em cima",
+                "acabou de cair um poste", "acabou de cair o poste", "acabou de cair poste",
+                "acabou de cair um poste na", "acabou de cair o poste na", "acabou de cair poste na",
+                "acabou de cair um poste em", "acabou de cair o poste em", "acabou de cair poste em",
+                "acabou de cair um poste no", "acabou de cair o poste no", "acabou de cair poste no",
+                "caiu agora um poste", "caiu agora o poste", "caiu agora poste",
+                "acabou de tombar um poste", "acabou de tombar o poste", "acabou de tombar poste",
+                "tombou um poste", "tombou o poste", "tombou poste",
+                "acabou de derrubar um poste", "acabou de derrubar o poste", "acabou de derrubar poste",
+                "derrubou um poste", "derrubou o poste", "derrubou poste",
+                "acabou de cair um poste na rua", "acabou de cair o poste na rua", "acabou de cair poste na rua",
+                "acabou de cair um poste na via", "acabou de cair o poste na via", "acabou de cair poste na via",
+                "acabou de cair um poste na avenida", "acabou de cair o poste na avenida", "acabou de cair poste na avenida",
+                "acabou de cair um poste na calçada", "acabou de cair o poste na calçada", "acabou de cair poste na calçada",
+                "acabou de cair um poste na calcada", "acabou de cair o poste na calcada", "acabou de cair poste na calcada",
+                
+                # "poste caiu na rua", "poste caiu na via"
+                "poste caiu na rua", "poste caiu na via", "poste caiu na avenida",
+                "poste caiu na estrada", "poste caiu na rodovia", "poste caiu na calçada",
+                "poste caiu na calcada", "poste caiu no chao", "poste caiu no chão",
+                "poste caiu no solo", "poste caiu em cima", "poste caiu sobre",
+                "poste caiu em cima do carro", "poste caiu sobre o carro",
                 "poste caiu em cima da casa", "poste caiu sobre a casa",
                 "poste caiu em cima do muro", "poste caiu sobre o muro",
                 "poste caiu em cima da arvore", "poste caiu sobre a arvore",
@@ -820,11 +884,25 @@ class ExtratorDadosChamado:
         # 2. Verificar se há entidades de PESSOA + palavras de perigo
         for ent in doc.ents:
             if ent.label_ in ["PER", "PESSOA"]:
-                # Verificar o contexto ao redor da pessoa
                 contexto = self._obter_contexto(doc, ent, janela=10)
                 if any(p in contexto for p in ["risco", "perigo", "morte", "ferido", "morrendo", "socorro"]):
                     print(f"   ✅ Risco humano detectado: pessoa '{ent.text}' em contexto de perigo", file=sys.stderr)
                     return 1
+        
+        # ✅ 3. NOVO: Verificar fios/cabos caídos (risco de choque)
+        texto = doc.text.lower()
+        fios_caidos = any(f in texto for f in ["fio", "fios", "cabo", "cabos", "fiacao", "fiação", "rede eletrica", "rede elétrica"])
+        contexto_perigo = any(p in texto for p in ["caido", "caído", "caindo", "soltos", "soltas", "expostos", "expostas", "energizado", "energizada", "choque", "eletrocutado", "eletrocutada", "na rua", "na via", "no chao", "no chão"])
+        
+        if fios_caidos and contexto_perigo:
+            print(f"   ✅ Risco humano detectado: fios/cabos caídos (risco de choque)", file=sys.stderr)
+            return 1
+        
+        # ✅ 4. NOVO: Verificar poste caído com fios
+        poste_caido = any(p in texto for p in ["poste caido", "poste caído", "poste caiu", "poste caindo", "poste derrubado", "poste tombado"])
+        if poste_caido:
+            print(f"   ✅ Risco humano detectado: poste caído (risco de choque)", file=sys.stderr)
+            return 1
         
         return 0
     
@@ -854,6 +932,20 @@ class ExtratorDadosChamado:
             print(f"   ✅ Risco animal detectado: animal + contexto de perigo", file=sys.stderr)
             return 1
         
+        # ✅ 3. NOVO: Verificar fios/cabos caídos (risco para animais)
+        fios_caidos = any(f in texto for f in ["fio", "fios", "cabo", "cabos", "fiacao", "fiação", "rede eletrica", "rede elétrica"])
+        contexto_perigo = any(p in texto for p in ["caido", "caído", "caindo", "soltos", "soltas", "expostos", "expostas", "energizado", "energizada", "choque", "eletrocutado", "eletrocutada"])
+        
+        if fios_caidos and contexto_perigo:
+            print(f"   ✅ Risco animal detectado: fios/cabos caídos (risco de choque)", file=sys.stderr)
+            return 1
+        
+        # ✅ 4. NOVO: Verificar poste caído com fios
+        poste_caido = any(p in texto for p in ["poste caido", "poste caído", "poste caiu", "poste caindo", "poste derrubado", "poste tombado"])
+        if poste_caido:
+            print(f"   ✅ Risco animal detectado: poste caído (risco de choque)", file=sys.stderr)
+            return 1
+        
         return 0
     
     # =============================================
@@ -874,9 +966,66 @@ class ExtratorDadosChamado:
         for ent in doc.ents:
             if ent.label_ in ["LOC", "LOCAL", "GPE"]:
                 contexto = self._obter_contexto(doc, ent, janela=8)
-                if any(p in contexto for p in ["bloquead", "interditad", "fechad", "obstruid", "impassavel"]):
+                if any(p in contexto for p in ["bloquead", "interditad", "fechad", "obstruid", "impassavel", "impedind", "impede", "atrapalhand"]):
                     print(f"   ✅ Bloqueio de via detectado: local '{ent.text}' bloqueado", file=sys.stderr)
                     return 1
+        
+        # ✅ 3. NOVO: Verificar combinação de obstáculo + via + impedimento
+        # Palavras que indicam obstáculo na via
+        obstaculos = [
+            "lixo", "entulho", "detrito", "sujeira", "galho", "arvore", "árvore",
+            "tronco", "toco", "buraco", "cratera", "erosao", "erosão", "afundamento",
+            "alagamento", "enchente", "inundacao", "inundação", "deslizamento",
+            "desmoronamento", "veiculo", "veículo", "carro", "caminhao", "caminhão",
+            "onibus", "ônibus", "moto", "bicicleta", "pedra", "entulho", "material",
+            "construcao", "construção", "obra", "cerca", "grade", "portao", "portão",
+            "cerca", "tapume", "andaime", "poste", "fio", "cabo", "fiacao", "fiação"
+        ]
+        
+        # Palavras que indicam via/rua
+        vias = [
+            "rua", "avenida", "via", "estrada", "rodovia", "travessa", "alameda",
+            "praca", "praça", "pista", "calcada", "calçada", "passagem", "acesso",
+            "transito", "trânsito", "circulacao", "circulação", "trafego", "tráfego"
+        ]
+        
+        # Palavras que indicam impedimento
+        impedimentos = [
+            "impedindo", "impede", "impedem", "impediu", "impedir",
+            "bloqueando", "bloqueia", "bloqueiam", "bloqueou", "bloquear",
+            "obstruindo", "obstrui", "obstruem", "obstruiu", "obstruir",
+            "atrapalhando", "atrapalha", "atrapalham", "atrapalhou", "atrapalhar",
+            "prejudicando", "prejudica", "prejudicam", "prejudicou", "prejudicar",
+            "dificultando", "dificulta", "dificultam", "dificultou", "dificultar",
+            "interrompendo", "interrompe", "interrompem", "interrompeu", "interromper",
+            "fechando", "fecha", "fecham", "fechou", "fechar",
+            "nao consigo", "não consigo", "nao conseguem", "não conseguem",
+            "nao da", "não da", "nao dá", "não dá",
+            "impossivel", "impossível", "sem passagem"
+        ]
+        
+        texto = doc.text.lower()
+        
+        tem_obstaculo = any(o in texto for o in obstaculos)
+        tem_via = any(v in texto for v in vias)
+        tem_impedimento = any(i in texto for i in impedimentos)
+        
+        # Se tem obstáculo + via + impedimento, é bloqueio
+        if tem_obstaculo and tem_via and tem_impedimento:
+            print(f"   ✅ Bloqueio de via detectado: obstáculo + via + impedimento", file=sys.stderr)
+            print(f"      Obstáculo: {[o for o in obstaculos if o in texto]}", file=sys.stderr)
+            print(f"      Via: {[v for v in vias if v in texto]}", file=sys.stderr)
+            print(f"      Impedimento: {[i for i in impedimentos if i in texto]}", file=sys.stderr)
+            return 1
+        
+        # ✅ 4. Verificar se tem obstáculo + via (sem impedimento explícito)
+        # Ex: "lixo espalhado pela rua"
+        if tem_obstaculo and tem_via:
+            # Verificar se há contexto de problema
+            contexto_problema = ["espalhado", "espalhada", "jogado", "jogada", "acumulado", "acumulada", "no chao", "no chão", "na via", "na rua"]
+            if any(c in texto for c in contexto_problema):
+                print(f"   ✅ Bloqueio de via detectado: obstáculo + via + contexto de problema", file=sys.stderr)
+                return 1
         
         return 0
     
@@ -888,8 +1037,8 @@ class ExtratorDadosChamado:
         matches = self.phrase_matcher(doc)
         
         if not matches:
-            print(f"   ⚠️ Nenhum tipo de chamado identificado, usando padrão (1)", file=sys.stderr)
-            return 1
+            print(f"   ⚠️ Nenhum tipo de chamado identificado, usando padrão (22)", file=sys.stderr)
+            return 22  # Padrão: Outros
         
         # Contar matches por tipo
         contagem = {}
@@ -898,7 +1047,16 @@ class ExtratorDadosChamado:
             tipo_id = int(rule_id.split("_")[1])
             contagem[tipo_id] = contagem.get(tipo_id, 0) + 1
         
-        # Retornar o tipo com mais matches
+        # ✅ PRIORIDADE: Tipos específicos têm prioridade sobre o tipo 1 (Outros Problemas com Postes)
+        # Se houver match para tipo 7 (Poste Caído) ou 9 (Árvore Caída) ou 2 (Luz Queimada), priorizar
+        tipos_prioritarios = [7, 9, 2, 19, 6, 10, 4, 3, 5, 12, 15, 17, 21]
+        
+        for tipo_prioritario in tipos_prioritarios:
+            if tipo_prioritario in contagem:
+                print(f"   ✅ Tipo de chamado detectado (prioritário): {tipo_prioritario} ({contagem[tipo_prioritario]} ocorrências)", file=sys.stderr)
+                return tipo_prioritario
+        
+        # Se não houver tipos prioritários, retornar o com mais matches
         melhor_tipo = max(contagem.items(), key=lambda x: x[1])
         print(f"   ✅ Tipo de chamado detectado: {melhor_tipo[0]} ({melhor_tipo[1]} ocorrências)", file=sys.stderr)
         

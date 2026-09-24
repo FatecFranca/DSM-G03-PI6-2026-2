@@ -316,11 +316,11 @@ export default function ChamadosPage() {
 
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Recusados</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Recusados | Cancelados</span>
                   <ShieldBan size={18} className="text-red-800 dark:text-red-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {estatisticas.porStatus.RECUSADO || 0}
+                  {estatisticas.porStatus.RECUSADO || 0} | {estatisticas.porStatus.CANCELADO || 0}
                 </p>
               </div>
 
@@ -340,7 +340,7 @@ export default function ChamadosPage() {
                   <AlertCircle size={18} className="text-green-800 dark:text-yellow-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {estatisticas.porStatus.CANCELADO || 0}
+                  {estatisticas.porStatus.FALTAINFORMACAO || 0}
                 </p>
               </div>
 
@@ -348,45 +348,78 @@ export default function ChamadosPage() {
           </div>
           <br />
           <div>
-            <p>Prioridades</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Prioridades
+            </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-red-600 dark:border-red-400 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Urgênte</span>
-                  <TriangleAlert size={18} className="text-red-800 dark:text-red-400" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {estatisticas.porUrgencia.URGENTE || 0}
-                </p>
-              </div>
 
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+              {/* URGENTE */}
+              {(() => {
+                const urgentesAbertos = (estatisticas.porUrgencia.URGENTE || 0) - (estatisticas.porUrgenciaFechados.URGENTE || 0);
+                return (
+                  <div className={`bg-white dark:bg-gray-900 rounded-lg p-4 ${urgentesAbertos > 0
+                      ? 'border border-red-600 dark:border-red-400'
+                      : 'border border-gray-200 dark:border-gray-800'
+                    }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Urgente</span>
+                      <TriangleAlert
+                        size={18}
+                        className={urgentesAbertos > 0
+                          ? 'text-red-800 dark:text-red-400'
+                          : 'text-gray-400 dark:text-gray-500'
+                        }
+                      />
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                      {urgentesAbertos}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Abertos: {estatisticas.porUrgencia.URGENTE || 0} • Fechados: {estatisticas.porUrgenciaFechados.URGENTE || 0}
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* ALTA */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Alta</span>
                   <TriangleAlert size={18} className="text-orange-800 dark:text-orange-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {estatisticas.porUrgencia.ALTA || 0}
+                  {(estatisticas.porUrgencia.ALTA || 0) - (estatisticas.porUrgenciaFechados.ALTA || 0)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Abertos: {estatisticas.porUrgencia.ALTA || 0} • Fechados: {estatisticas.porUrgenciaFechados.ALTA || 0}
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+              {/* MÉDIA */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Média</span>
                   <TriangleAlert size={18} className="text-yellow-800 dark:text-yellow-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {estatisticas.porUrgencia.MEDIA || 0}
+                  {(estatisticas.porUrgencia.MEDIA || 0) - (estatisticas.porUrgenciaFechados.MEDIA || 0)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Abertos: {estatisticas.porUrgencia.MEDIA || 0} • Fechados: {estatisticas.porUrgenciaFechados.MEDIA || 0}
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+              {/* BAIXA */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Baixa</span>
                   <TriangleAlert size={18} className="text-green-600 dark:text-green-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {estatisticas.porUrgencia.BAIXA || 0}
+                  {(estatisticas.porUrgencia.BAIXA || 0) - (estatisticas.porUrgenciaFechados.BAIXA || 0)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Abertos: {estatisticas.porUrgencia.BAIXA || 0} • Fechados: {estatisticas.porUrgenciaFechados.BAIXA || 0}
                 </p>
               </div>
 

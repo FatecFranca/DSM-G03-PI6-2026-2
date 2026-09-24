@@ -822,7 +822,7 @@ class TecnicoController {
             // --- Gravar log de criação
             const LogAcao = 'ALTERARTECNICO';
             LogDetalhe = LogDetalhe + ' Dados antes da atualização: (' + JSON.stringify(tecnicoAlterarSemSenha) + '), dados depois da atualização: (' + JSON.stringify(tecnicoSemSenha) + ')';
-            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
+            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, tecnicoSemSenha.PessoaId);
             // ---
 
             return res.status(200).json({
