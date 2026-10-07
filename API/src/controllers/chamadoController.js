@@ -1364,19 +1364,17 @@ class ChamadoController {
             } else if (periodo === '90d') {
                 dataInicio.setDate(dataInicio.getDate() - 90);
             } else {
-                dataInicio.setDate(dataInicio.getDate() - 30); // padrão 30 dias
+                dataInicio.setDate(dataInicio.getDate() - 30);
             }
 
             dataInicio.setHours(0, 0, 0, 0);
             dataFim.setHours(23, 59, 59, 999);
 
             // Construir filtro base
-            const filtro = {
-                //ChamadoDtAbertura: {
-                //    gte: dataInicio,
-                //    lte: dataFim
-                //}
-            };
+            const filtro = {};
+
+            // ✅ Variável para armazenar a unidade do usuário
+            let unidadeIdUsuario = null;
 
             // Aplicar filtros de acordo com permissão
             if (usuarioLogado.usuarioTipo === 'GESTOR') {
@@ -1386,6 +1384,7 @@ class ChamadoController {
 
                 if (gestor) {
                     filtro.UnidadeId = gestor.UnidadeId;
+                    unidadeIdUsuario = gestor.UnidadeId; // ✅ Salvar para usar na mineração
                 }
             } else if (usuarioLogado.usuarioTipo === 'TECNICO') {
                 const tecnico = await prisma.tecnico.findUnique({
@@ -1393,56 +1392,32 @@ class ChamadoController {
                 });
 
                 if (tecnico) {
-                    // Buscar equipes que o técnico faz parte
                     const equipes = await prisma.tecnicoEquipe.findMany({
                         where: {
                             TecnicoId: usuarioLogado.usuarioId,
-                            TecEquStatus: 'ATIVO' // Considerar apenas vínculos ativos
+                            TecEquStatus: 'ATIVO'
                         },
                         select: {
                             EquipeId: true
                         }
                     });
 
-                    // Extrair apenas os IDs das equipes
                     const equipeIds = equipes.map(e => e.EquipeId);
 
-                    // Se o técnico não estiver em nenhuma equipe, retornar nenhum chamado
-                    if (equipeIds.length === 0) {
-                        // Opção 1: Retornar lista vazia
-                        /*
-                        return res.status(200).json({
-                            data: {
-                                periodo: {
-                                    dataInicio,
-                                    dataFim
-                                },
-                                total: 0,
-                                porStatus: {},
-                                porUrgencia: {}
-                            }
-                        });
-                        */
-
-                    }
-
-                    // Adicionar filtro para buscar chamados das equipes do técnico
                     filtro.UnidadeId = tecnico.UnidadeId;
+                    unidadeIdUsuario = tecnico.UnidadeId; // ✅ Salvar para usar na mineração
 
-                    console.log('equipeIds = ', equipeIds);
                     filtro.EquipeId = {
                         in: equipeIds
                     };
-
                 }
             }
 
             // Aplicar filtro de unidade se fornecido (apenas admin)
             if (unidadeId && usuarioLogado.usuarioTipo === 'ADMINISTRADOR') {
                 filtro.UnidadeId = parseInt(unidadeId);
+                unidadeIdUsuario = parseInt(unidadeId); // ✅ Salvar para usar na mineração
             }
-
-            //console.log('filtro = ', filtro);
 
             // Buscar estatísticas
             const [
@@ -1452,17 +1427,14 @@ class ChamadoController {
                 chamadosConcluidos,
                 porUrgenciaFechados
             ] = await Promise.all([
-                // Total de chamados no período
                 prisma.chamado.count({ where: filtro }),
 
-                // Chamados por status
                 prisma.chamado.groupBy({
                     by: ['ChamadoStatus'],
                     where: filtro,
                     _count: true
                 }),
 
-                // Chamados por urgência
                 prisma.chamado.groupBy({
                     by: ['ChamadoUrgencia'],
                     where: {
@@ -1472,7 +1444,6 @@ class ChamadoController {
                     _count: true
                 }),
 
-                // Buscar chamados concluídos para calcular tempo médio
                 prisma.chamado.findMany({
                     where: {
                         ...filtro,
@@ -1485,12 +1456,12 @@ class ChamadoController {
                     }
                 }),
 
-                // Chamados por urgência
                 prisma.chamado.groupBy({
                     by: ['ChamadoUrgencia'],
                     where: {
                         ...filtro,
-                        ChamadoUrgencia: { not: null }, ChamadoStatus: { in: ['CANCELADO', 'RECUSADO', 'CONCLUIDO', 'FALTAINFORMACAO'] }
+                        ChamadoUrgencia: { not: null },
+                        ChamadoStatus: { in: ['CANCELADO', 'RECUSADO', 'CONCLUIDO', 'FALTAINFORMACAO'] }
                     },
                     _count: true
                 }),
@@ -1507,7 +1478,6 @@ class ChamadoController {
             }
 
             // Calcular prioridade média
-            let prioridadeMedia = null;
             const prioridadeResult = await prisma.chamado.aggregate({
                 where: {
                     ...filtro,
@@ -1517,9 +1487,65 @@ class ChamadoController {
                     ChamadoPrioridade: true
                 }
             });
-            prioridadeMedia = prioridadeResult._avg.ChamadoPrioridade;
+            const prioridadeMedia = prioridadeResult._avg.ChamadoPrioridade;
 
+            // =============================================
+            // BUSCAR ÚLTIMA MINERAÇÃO DA UNIDADE
+            // =============================================
+            let ultimaMineracao = null;
 
+            if (unidadeIdUsuario) {
+                //console.log('🔍 Buscando última mineração da unidade:', unidadeIdUsuario);
+
+                ultimaMineracao = await prisma.execucaoMineracao.findFirst({
+                    where: {
+                        UnidadeId: unidadeIdUsuario,
+                        ExecucaoStatus: 'CONCLUIDA'
+                    },
+                    orderBy: {
+                        ExecucaoDtInicio: 'desc'
+                    },
+                    include: {
+                        Clusters: {
+                            orderBy: {
+                                ClusterNumero: 'asc'
+                            },
+                            include: {
+                                // Tipos de Suporte
+                                ClusterTipoSuporte: {
+                                    include: {
+                                        TipoSuporte: {
+                                            select: {
+                                                TipSupId: true,
+                                                TipSupNom: true,
+                                                TipSupStatus: true
+                                            }
+                                        }
+                                    },
+                                    orderBy: {
+                                        ClusterTipoQtdChamados: 'desc'
+                                    }
+                                },
+                                // Urgências do Cluster
+                                ClusterUrgencia: {
+                                    orderBy: {
+                                        ClusterUrgenciaQtdChamados: 'desc'
+                                    }
+                                },
+                                _count: {
+                                    select: {
+                                        ChamadosCluster: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // =============================================
+            // MONTAR RESPOSTA
+            // =============================================
             const data = {
                 periodo: {
                     dataInicio,
@@ -1537,10 +1563,60 @@ class ChamadoController {
                 porUrgenciaFechados: porUrgenciaFechados.reduce((acc, curr) => {
                     acc[curr.ChamadoUrgencia] = curr._count;
                     return acc;
-                }, {})
+                }, {}),
+                tempoMedioResolucao,
+                prioridadeMedia,
+
+                // Dados da última mineração
+                ultimaMineracao: ultimaMineracao ? {
+                    ExecucaoId: ultimaMineracao.ExecucaoId,
+                    UnidadeId: ultimaMineracao.UnidadeId,
+                    ExecucaoDtInicio: ultimaMineracao.ExecucaoDtInicio,
+                    ExecucaoDtFim: ultimaMineracao.ExecucaoDtFim,
+                    ExecucaoQtdDados: ultimaMineracao.ExecucaoQtdDados,
+                    ExecucaoQtdClusters: ultimaMineracao.ExecucaoQtdClusters,
+                    ExecucaoSilhouetteScore: ultimaMineracao.ExecucaoSilhouetteScore,
+                    ExecucaoDaviesBouldinScore: ultimaMineracao.ExecucaoDaviesBouldinScore,
+                    ExecucaoEstabilidadeScore: ultimaMineracao.ExecucaoEstabilidadeScore,
+                    ExecucaoPercentualMenorCluster: ultimaMineracao.ExecucaoPercentualMenorCluster,
+                    ExecucaoScoreCombinado: ultimaMineracao.ExecucaoScoreCombinado,
+                    ExecucaoStatus: ultimaMineracao.ExecucaoStatus,
+                    ExecucaoMensagemErro: ultimaMineracao.ExecucaoMensagemErro,
+
+                    // Clusters com seus tipos de suporte e urgências
+                    clusters: ultimaMineracao.Clusters.map(cluster => ({
+                        ClusterId: cluster.ClusterId,
+                        ClusterNumero: cluster.ClusterNumero,
+                        ClusterQtdChamados: cluster.ClusterQtdChamados,
+                        ClusterMediaDiasProblema: cluster.ClusterMediaDiasProblema,
+                        ClusterPercentualRiscoHumano: cluster.ClusterPercentualRiscoHumano,
+                        ClusterPercentualRiscoAnimal: cluster.ClusterPercentualRiscoAnimal,
+                        ClusterPercentualBloqueioVia: cluster.ClusterPercentualBloqueioVia,
+                        ClusterMediaTempoResolucao: cluster.ClusterMediaTempoResolucao,
+                        ClusterMediaUrgencia: cluster.ClusterMediaUrgencia,
+                        totalChamadosVinculados: cluster._count.ChamadosCluster,
+
+                        // Tipos de suporte do cluster
+                        tiposSuporte: cluster.ClusterTipoSuporte.map(cts => ({
+                            TipSupId: cts.TipoSuporte.TipSupId,
+                            TipSupNom: cts.TipoSuporte.TipSupNom,
+                            TipSupStatus: cts.TipoSuporte.TipSupStatus,
+                            ClusterTipoQtdChamados: cts.ClusterTipoQtdChamados,
+                            ClusterTipoPercentual: cts.ClusterTipoPercentual
+                        })),
+
+                        // Urgências do cluster
+                        urgencias: cluster.ClusterUrgencia.map(cu => ({
+                            ClusterUrgenciaId: cu.ClusterUrgenciaId,
+                            ClusterUrgenciaNome: cu.ClusterUrgenciaNome,
+                            ClusterUrgenciaQtdChamados: cu.ClusterUrgenciaQtdChamados,
+                            ClusterUrgenciaPercentual: cu.ClusterUrgenciaPercentual
+                        }))
+                    }))
+                } : null
             };
 
-            //console.log('data = ', data);
+            //console.log('📊 Estatísticas de chamados:', data);
 
             return res.status(200).json({
                 data: data

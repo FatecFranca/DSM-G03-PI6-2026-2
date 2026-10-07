@@ -11,11 +11,15 @@ import {
   Clock,
   AlertCircle,
   CheckCircle,
-  XCircle,
-  HelpCircle,
+  RotateCcw,
+  CircleCheckBig,
+  CircleAlert,
+  ShieldBan,
+  Ban,
   RefreshCw,
   BarChart3
 } from "lucide-react"
+import { STATUS_COLORS } from '@/lib/status-colors';
 import { useGestorAuth } from "@/app/contexts/GestorAuthContext"
 import { apiClient } from "@/lib/api"
 import Cookies from "js-cookie"
@@ -28,12 +32,15 @@ interface DashboardData {
   totalGestoresADM: number
   totalTiposSuporte: number
   totalDepartamentos: number
+  totalChamadosProcessamento: number
   totalChamadosPendentes: number
   totalChamadosAnalisados: number
   totalChamadosAtribuidos: number
   totalChamadosAtendimento: number
+  totalChamadosConcluidos: number
   totalChamadosFaltandoInformacao: number
   totalChamadosRecusados: number
+  totalChamadosCancelados: number
 }
 
 interface StatCard {
@@ -76,12 +83,12 @@ export default function GestorDashboard() {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const response = await apiClient.get('/gestor/dashboard/dados')
       setData(response.data.data)
     } catch (err: any) {
       console.error('Erro ao carregar dashboard:', err)
-      
+
       if (err.response?.status === 401) {
         setError('Sessão expirada. Faça login novamente.')
         setTimeout(() => {
@@ -203,54 +210,79 @@ export default function GestorDashboard() {
   }
 
   // Cards de status de chamados
+  // Cards de status de chamados
   const chamadoStatusCards: ChamadoStatusCard[] = [
+    {
+      title: "Processamento",
+      value: data.totalChamadosProcessamento,
+      icon: RotateCcw,
+      color: STATUS_COLORS.PROCESSAMENTO.text,
+      bgColor: STATUS_COLORS.PROCESSAMENTO.bg,
+      status: "Processando pelo sistema"
+    },
     {
       title: "Pendentes",
       value: data.totalChamadosPendentes,
       icon: Clock,
-      color: "text-orange-600 dark:text-orange-400",
-      bgColor: "bg-orange-100 dark:bg-orange-900/20",
+      color: STATUS_COLORS.PENDENTE.text,
+      bgColor: STATUS_COLORS.PENDENTE.bg,
       status: "Aguardando análise"
     },
     {
       title: "Analisados",
       value: data.totalChamadosAnalisados,
       icon: CheckCircle,
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20",
+      color: STATUS_COLORS.ANALISADO.text,
+      bgColor: STATUS_COLORS.ANALISADO.bg,
       status: "Prontos para atribuição"
     },
     {
       title: "Atribuídos",
       value: data.totalChamadosAtribuidos,
       icon: Users2,
-      color: "text-indigo-600 dark:text-indigo-400",
-      bgColor: "bg-indigo-100 dark:bg-indigo-900/20",
+      color: STATUS_COLORS.ATRIBUIDO.text,
+      bgColor: STATUS_COLORS.ATRIBUIDO.bg,
       status: "Aguardando início"
     },
     {
       title: "Em Atendimento",
       value: data.totalChamadosAtendimento,
       icon: Hammer,
-      color: "text-purple-600 dark:text-purple-400",
-      bgColor: "bg-purple-100 dark:bg-purple-900/20",
+      color: STATUS_COLORS.EMATENDIMENTO.text,
+      bgColor: STATUS_COLORS.EMATENDIMENTO.bg,
       status: "Em andamento"
+    },
+    {
+      title: "Concluídos",
+      value: data.totalChamadosConcluidos,
+      icon: CircleCheckBig,
+      color: STATUS_COLORS.CONCLUIDO.text,
+      bgColor: STATUS_COLORS.CONCLUIDO.bg,
+      status: "Atendimento finalizado"
     },
     {
       title: "Falta Informação",
       value: data.totalChamadosFaltandoInformacao,
-      icon: HelpCircle,
-      color: "text-yellow-600 dark:text-yellow-400",
-      bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
+      icon: CircleAlert,
+      color: STATUS_COLORS.FALTAINFORMACAO.text,
+      bgColor: STATUS_COLORS.FALTAINFORMACAO.bg,
       status: "Aguardando complemento"
     },
     {
       title: "Recusados",
       value: data.totalChamadosRecusados,
-      icon: XCircle,
-      color: "text-red-600 dark:text-red-400",
-      bgColor: "bg-red-100 dark:bg-red-900/20",
+      icon: ShieldBan,
+      color: STATUS_COLORS.RECUSADO.text,
+      bgColor: STATUS_COLORS.RECUSADO.bg,
       status: "Não aprovados"
+    },
+    {
+      title: "Cancelados",
+      value: data.totalChamadosCancelados,
+      icon: Ban,
+      color: STATUS_COLORS.CANCELADO.text,
+      bgColor: STATUS_COLORS.CANCELADO.bg,
+      status: "Cancelados pelos cidadãos"
     }
   ]
 
@@ -261,7 +293,10 @@ export default function GestorDashboard() {
     data.totalChamadosAtribuidos +
     data.totalChamadosAtendimento +
     data.totalChamadosFaltandoInformacao +
-    data.totalChamadosRecusados
+    data.totalChamadosRecusados +
+    data.totalChamadosCancelados +
+    data.totalChamadosConcluidos +
+    data.totalChamadosProcessamento
 
   return (
     <div className="space-y-6">
@@ -438,43 +473,110 @@ export default function GestorDashboard() {
 
       {/* Informações adicionais */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-          <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">Legenda de Status</p>
-          <ul className="space-y-1">
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-              Pendente: Aguardando análise inicial
+
+        {/* Legenda de Status */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-5">
+          <p className="font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+            Legenda de Status
+          </p>
+          <ul className="space-y-0">
+
+            {/* Processamento */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-orange-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-orange-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Processamento: Em processamento pelo sistema de classificação</span>
+              </div>
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-              Analisado: Pronto para atribuição
+
+            {/* Pendente */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-yellow-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-yellow-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Pendente: Aguardando análise inicial de um gestor</span>
+              </div>
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
-              Atribuído: Aguardando início do atendimento
+
+            {/* Analisado */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-blue-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Analisado: Pronto para atribuição a uma equipe</span>
+              </div>
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-              Em Atendimento: Em andamento
+
+            {/* Atribuído */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-indigo-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Atribuído: Aguardando início do atendimento pela equipe designada</span>
+              </div>
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-              Falta Informação: Aguardando dados do solicitante
+
+            {/* Em Atendimento */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-purple-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-purple-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Em Atendimento: Sendo atendido pela equipe designada</span>
+              </div>
             </li>
-            <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-              Recusado: Não aprovado pelo gestor
+
+            {/* Concluído */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-green-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Concluído: Finalizado o atendimento ao chamado</span>
+              </div>
+            </li>
+
+            {/* Falta Informação */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-pink-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-pink-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Falta Informação: Aguardando dados necessários</span>
+              </div>
+            </li>
+
+            {/* Recusado */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-red-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-red-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Recusado: Não aprovado por um gestor</span>
+              </div>
+            </li>
+
+            {/* Cancelado */}
+            <li className="flex items-start gap-2 p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <span className="w-2 h-2 bg-gray-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm shadow-gray-500/50"></span>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">Cancelado: Descartado pelo cidadão</span>
+              </div>
             </li>
           </ul>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-          <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">Última atualização</p>
-          <p className="text-sm">{new Date().toLocaleString('pt-BR')}</p>
-          <p className="text-xs mt-2 text-gray-400">
-            Os dados são atualizados em tempo real conforme as movimentações no sistema.
+        {/* Última atualização */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-5">
+          <p className="font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            Última atualização
           </p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/10 dark:to-transparent rounded-lg border border-blue-100 dark:border-blue-900/30">
+              <Clock size={18} className="text-blue-600 dark:text-blue-400" />
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Data e hora</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {new Date().toLocaleString('pt-BR')}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs mt-2 text-gray-400 dark:text-gray-500 flex items-start gap-2">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1 flex-shrink-0 animate-pulse"></span>
+              Os dados são atualizados em tempo real conforme as movimentações no sistema.
+            </p>
+          </div>
         </div>
+
       </div>
     </div>
   )

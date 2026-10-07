@@ -1,6 +1,6 @@
 // server.js
 const express = require('express');
-const path = require('path');
+//const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
@@ -67,6 +67,9 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Executar mineração
+//require("./md/mineracaoScheduler");
 
 // Iniciar servidor
 app.listen(PORT, () => {

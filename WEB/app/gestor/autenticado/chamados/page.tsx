@@ -15,29 +15,24 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  HelpCircle,
   PlayCircle,
-  PauseCircle,
   Calendar,
   Users,
   Briefcase,
   AlertTriangle,
-  TrendingUp,
   BarChart3,
-  ListTodo,
-  BookCheck,
-  Shield,
-  ShieldAlert,
   ShieldBan,
-  ShieldX,
   TriangleAlert,
-  ClockAlert,
-  CircleAlert,
-  RotateCcw
+  RotateCcw,
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  Target,
+  Activity,
+  Info,
 } from "lucide-react"
 import { listarChamados, getEstatisticas, type Chamado, type ChamadoFilters, type Estatisticas } from "@/lib/chamado-service"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
 import { formatarDataBrasil } from '@/utils/dateUtils'
 
 // Componente de Status Badge
@@ -85,6 +80,51 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// Formata número decimal com vírgula
+function formatarDecimal(valor: number | null | undefined, casas: number = 2): string {
+  if (valor === null || valor === undefined) return 'N/A';
+  return valor.toFixed(casas).replace('.', ',');
+}
+
+// Componente de Tooltip simples
+function Tooltip({ children, text }: { children: React.ReactNode; text: string }) {
+  return (
+    <div className="relative group inline-flex items-center">
+      {children}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 w-48 text-center pointer-events-none">
+        {text}
+        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+      </div>
+    </div>
+  );
+}
+
+// Converte número em letra(s) do alfabeto no estilo "coluna de planilha"
+// 0 → A, 1 → B, ..., 25 → Z, 26 → AA, 27 → AB, ...
+function numeroParaLetra(numero: number): string {
+  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const base = letras.length; // 26
+
+  if (numero < 0) {
+    return `?${numero}`; // Fallback para números negativos
+  }
+
+  let resultado = '';
+  let n = numero;
+
+  // Sistema "bijective base-26" (A=1, B=2, ..., Z=26, AA=27, ...)
+  // Como aqui A=0, fazemos o ajuste somando 1 antes de cada divisão.
+  n = n + 1;
+
+  while (n > 0) {
+    const resto = (n - 1) % base;
+    resultado = letras[resto] + resultado;
+    n = Math.floor((n - 1) / base);
+  }
+
+  return resultado;
+}
+
 // Componente de Urgência Badge
 function UrgenciaBadge({ urgencia }: { urgencia?: string }) {
   if (!urgencia) return null;
@@ -110,6 +150,7 @@ export default function ChamadosPage() {
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mineracaoExpandida, setMineracaoExpandida] = useState(false);
   const [filters, setFilters] = useState<ChamadoFilters>({
     status: 'PENDENTE',
     urgencia: undefined,
@@ -122,6 +163,8 @@ export default function ChamadosPage() {
 
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [itensPorPagina, setItensPorPagina] = useState(10);
+
+  const [clustersExpandidos, setClustersExpandidos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     carregarDados();
@@ -166,6 +209,35 @@ export default function ChamadosPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPaginaAtual(1); // Resetar página ao buscar
+  };
+
+  // Alterna a expansão de um cluster específico
+  const toggleCluster = (clusterId: string) => {
+    setClustersExpandidos(prev => {
+      const novo = new Set(prev);
+      if (novo.has(clusterId)) {
+        novo.delete(clusterId);
+      } else {
+        novo.add(clusterId);
+      }
+      return novo;
+    });
+  };
+
+  // Verifica se um cluster está expandido
+  const isClusterExpandido = (clusterId: string) => {
+    return clustersExpandidos.has(clusterId);
+  };
+
+  // Expandir todos
+  const expandirTodos = () => {
+    if (!estatisticas?.ultimaMineracao) return;
+    setClustersExpandidos(new Set(estatisticas.ultimaMineracao.clusters.map(c => c.ClusterId)));
+  };
+
+  // Colapsar todos
+  const colapsarTodos = () => {
+    setClustersExpandidos(new Set());
   };
 
   // Resetar página quando os filtros mudarem
@@ -249,8 +321,12 @@ export default function ChamadosPage() {
       {estatisticas && (
         <div>
           <div>
-            <p>Fases</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Fases
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+
+              {/* Total */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Total</span>
@@ -259,11 +335,20 @@ export default function ChamadosPage() {
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {estatisticas.total}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  Últimos 30 dias
+              </div>
+
+              {/* Processando */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Processamento</span>
+                  <Clock size={18} className="text-yellow-800 dark:text-yellow-400" />
+                </div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {estatisticas.porStatus.PROCESSAMENTO || 0}
                 </p>
               </div>
 
+              {/* Pendentes */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Pendentes</span>
@@ -274,6 +359,7 @@ export default function ChamadosPage() {
                 </p>
               </div>
 
+              {/* Analisados */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Analisados</span>
@@ -284,6 +370,7 @@ export default function ChamadosPage() {
                 </p>
               </div>
 
+              {/* Atribuídos */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Atribuídos</span>
@@ -294,6 +381,7 @@ export default function ChamadosPage() {
                 </p>
               </div>
 
+              {/* Em Atendimento */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Em Atendimento</span>
@@ -304,6 +392,7 @@ export default function ChamadosPage() {
                 </p>
               </div>
 
+              {/* Concluídos */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Concluídos</span>
@@ -314,30 +403,33 @@ export default function ChamadosPage() {
                 </p>
               </div>
 
+              {/* Recusados */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Recusados | Cancelados</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Recusados</span>
                   <ShieldBan size={18} className="text-red-800 dark:text-red-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {estatisticas.porStatus.RECUSADO || 0} | {estatisticas.porStatus.CANCELADO || 0}
+                  {estatisticas.porStatus.RECUSADO || 0}
                 </p>
               </div>
 
-              {/*<div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Cancelados</span>
-              <XCircle size={18} className="text-green-600 dark:text-red-400" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {estatisticas.porStatus.CANCELADO || 0}
-            </p>
-          </div>{*/}
+              {/* Cancelados */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Cancelados</span>
+                  <XCircle size={18} className="text-red-800 dark:text-red-400" />
+                </div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {estatisticas.porStatus.CANCELADO || 0}
+                </p>
+              </div>
 
+              {/* Falta Informação */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Falta Informação</span>
-                  <AlertCircle size={18} className="text-green-800 dark:text-yellow-400" />
+                  <AlertCircle size={18} className="text-yellow-800 dark:text-yellow-400" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {estatisticas.porStatus.FALTAINFORMACAO || 0}
@@ -358,8 +450,8 @@ export default function ChamadosPage() {
                 const urgentesAbertos = (estatisticas.porUrgencia.URGENTE || 0) - (estatisticas.porUrgenciaFechados.URGENTE || 0);
                 return (
                   <div className={`bg-white dark:bg-gray-900 rounded-lg p-4 ${urgentesAbertos > 0
-                      ? 'border border-red-600 dark:border-red-400'
-                      : 'border border-gray-200 dark:border-gray-800'
+                    ? 'border border-red-600 dark:border-red-400'
+                    : 'border border-gray-200 dark:border-gray-800'
                     }`}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-500 dark:text-gray-400">Urgente</span>
@@ -425,6 +517,388 @@ export default function ChamadosPage() {
 
             </div>
           </div>
+        </div>
+      )}
+
+      {estatisticas?.ultimaMineracao && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+
+          {/* Cabeçalho clicável (minimizado por padrão) */}
+          <button
+            onClick={() => setMineracaoExpandida(!mineracaoExpandida)}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                <Brain size={20} className="text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  Análise de Chamados por Agrupamento
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {estatisticas.ultimaMineracao.ExecucaoQtdClusters} clusters •{' '}
+                  {estatisticas.ultimaMineracao.ExecucaoQtdDados} chamados analisados •{' '}
+                  Executada em{' '}
+                  {formatarDataBrasil(estatisticas.ultimaMineracao.ExecucaoDtInicio)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Ícone de expandir/colapsar */}
+              {mineracaoExpandida ? (
+                <ChevronUp size={20} className="text-gray-400" />
+              ) : (
+                <ChevronDown size={20} className="text-gray-400" />
+              )}
+            </div>
+          </button>
+
+          {/* Conteúdo expandido */}
+          {mineracaoExpandida && (
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-4">
+
+              {/* Rodapé com informações */}
+              <div className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <Info
+                  size={16}
+                  className="text-gray-400 mt-0.5 flex-shrink-0"
+                />
+
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  <strong className="text-gray-600 dark:text-gray-300">
+                    Cálculo do Score:
+                  </strong>{" "}
+                  o resultado é uma média ponderada de quatro indicadores:
+                  <strong> Silhouette (35%)</strong>, que avalia a separação dos
+                  clusters; <strong>Davies-Bouldin (25%)</strong>, que avalia a
+                  proximidade entre clusters; <strong>Estabilidade (25%)</strong>,
+                  que verifica a consistência dos agrupamentos; e{" "}
+                  <strong>Menor cluster (15%)</strong>, que evita grupos muito
+                  pequenos.
+                  <br />
+                  <span className="mt-1 inline-block">
+                    Cada indicador é convertido para uma escala de 0 a 1 antes da
+                    combinação. Para Silhouette e Estabilidade, valores maiores
+                    recebem maior pontuação; para Davies-Bouldin, valores menores
+                    recebem maior pontuação. O menor cluster recebe pontuação máxima
+                    quando representa pelo menos 2% dos chamados.
+                  </span>
+                  <br />
+                  <span className="mt-1 inline-block font-medium text-gray-600 dark:text-gray-300">
+                    Fórmula: Score = 0,35 × Silhouette + 0,25 × Davies-Bouldin +
+                    0,25 × Estabilidade + 0,15 × Menor cluster
+                  </span>
+                </p>
+              </div>
+
+              {/* Cards de resumo da mineração */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+                {/* Grupos (Clusters) - Roxo */}
+                <Tooltip text="Número total de grupos (clusters) identificados na análise de agrupamento.">
+                  <div className="w-full bg-purple-50 dark:bg-purple-900/10 rounded-lg p-3 border border-purple-200 dark:border-purple-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Layers size={14} className="text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Grupos</span>
+                    </div>
+                    <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                      {estatisticas.ultimaMineracao.ExecucaoQtdClusters}
+                    </p>
+                  </div>
+                </Tooltip>
+
+                {/* Chamados - Azul */}
+                <Tooltip text="Quantidade total de chamados utilizados na análise de agrupamento.">
+                  <div className="w-full bg-blue-50 dark:bg-blue-900/10 rounded-lg p-3 border border-blue-200 dark:border-blue-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Activity size={14} className="text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Chamados</span>
+                    </div>
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                      {estatisticas.ultimaMineracao.ExecucaoQtdDados}
+                    </p>
+                  </div>
+                </Tooltip>
+
+                {/* Qualidade (Silhouette) - Verde */}
+                <Tooltip text="Qualidade do agrupamento (quanto mais próximo de 100%, melhor), não deve ser considerado isoladamente, mas em conjunto com os outros indicadores">
+                  <div className="w-full bg-green-50 dark:bg-green-900/10 rounded-lg p-3 border border-green-200 dark:border-green-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target size={14} className="text-green-600 dark:text-green-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Qualidade</span>
+                    </div>
+                    <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                      {estatisticas.ultimaMineracao.ExecucaoSilhouetteScore != null
+                        ? `${formatarDecimal(estatisticas.ultimaMineracao.ExecucaoSilhouetteScore * 100, 2)}%`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </Tooltip>
+
+                {/* Davies Bouldin - Laranja */}
+                <Tooltip text="Índice Davies-Bouldin: mede a separação entre grupos (quanto menor, melhor)">
+                  <div className="w-full bg-orange-50 dark:bg-orange-900/10 rounded-lg p-3 border border-orange-200 dark:border-orange-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target size={14} className="text-orange-600 dark:text-orange-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Davies Bouldin</span>
+                    </div>
+                    <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                        {estatisticas.ultimaMineracao.ExecucaoDaviesBouldinScore != null
+                        ? `${formatarDecimal(estatisticas.ultimaMineracao.ExecucaoDaviesBouldinScore * 100, 2)}%`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </Tooltip>
+
+                {/* Estabilidade - Ciano */}
+                <Tooltip text="Estabilidade do agrupamento: mede a consistência da formação dos grupos em diferentes execuções">
+                  <div className="w-full bg-cyan-50 dark:bg-cyan-900/10 rounded-lg p-3 border border-cyan-200 dark:border-cyan-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target size={14} className="text-cyan-600 dark:text-cyan-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Estabilidade</span>
+                    </div>
+                    <p className="text-xl font-bold text-cyan-600 dark:text-cyan-400">
+                      {estatisticas.ultimaMineracao.ExecucaoEstabilidadeScore != null
+                        ? `${formatarDecimal(estatisticas.ultimaMineracao.ExecucaoEstabilidadeScore * 100, 2)}%`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </Tooltip>
+
+                {/* Menor Cluster - Âmbar */}
+                <Tooltip text="Percentual de chamados do menor grupo em relação ao total analisado">
+                  <div className="w-full bg-amber-50 dark:bg-amber-900/10 rounded-lg p-3 border border-amber-200 dark:border-amber-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target size={14} className="text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Menor Grupo</span>
+                    </div>
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                      {estatisticas.ultimaMineracao.ExecucaoPercentualMenorCluster != null
+                        ? `${formatarDecimal(estatisticas.ultimaMineracao.ExecucaoPercentualMenorCluster * 100, 2)}%`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </Tooltip>
+
+                {/* Score Final - Rosa */}
+                <Tooltip text="Pontuação final combinada que resume a qualidade geral do agrupamento (escolhida a mais proxima de 100%)">
+                  <div className="w-full bg-pink-50 dark:bg-pink-900/10 rounded-lg p-3 border border-pink-200 dark:border-pink-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target size={14} className="text-pink-600 dark:text-pink-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Score Final</span>
+                    </div>
+                    <p className="text-xl font-bold text-pink-600 dark:text-pink-400">
+                      {estatisticas.ultimaMineracao.ExecucaoScoreCombinado != null
+                        ? `${formatarDecimal(estatisticas.ultimaMineracao.ExecucaoScoreCombinado * 100, 2)}%`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </Tooltip>
+
+                <div className="w-full bg-gray-50 dark:bg-gray-900/10 rounded-lg p-3 border border-gray-200 dark:border-gray-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calendar size={14} className="text-gray-600 dark:text-gray-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Última Atualização</span>
+                    </div>
+                    <p className="text-xl font-bold text-gray-600 dark:text-gray-400">
+                      {formatarDataBrasil(estatisticas.ultimaMineracao.ExecucaoDtInicio)}
+                    </p>
+                  </div>
+
+              </div>
+
+              {/* Botões de expandir/colapsar todos */}
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={expandirTodos}
+                  className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Expandir Todos
+                </button>
+                <button
+                  onClick={colapsarTodos}
+                  className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Recolher Todos
+                </button>
+              </div>
+
+              {/* Grid de Clusters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+                {estatisticas.ultimaMineracao.clusters.map((cluster) => {
+                  const expandido = isClusterExpandido(cluster.ClusterId);
+
+                  return (
+                    <div
+                      key={cluster.ClusterId}
+                      className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 hover:shadow-md transition-shadow overflow-hidden"
+                    >
+                      {/* ✅ Cabeçalho clicável para expandir/colapsar */}
+                      <button
+                        onClick={() => toggleCluster(cluster.ClusterId)}
+                        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                            {numeroParaLetra(cluster.ClusterNumero)}
+                          </div>
+                          <div className="text-left">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                              Grupo {numeroParaLetra(cluster.ClusterNumero)}
+                            </h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {cluster.ClusterQtdChamados} chamados
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Ícone de expandir/colapsar */}
+                        <div className="flex items-center gap-2">
+                          {expandido ? (
+                            <ChevronUp size={18} className="text-gray-400" />
+                          ) : (
+                            <ChevronDown size={18} className="text-gray-400" />
+                          )}
+                        </div>
+                      </button>
+
+                      {/* ✅ Conteúdo expandido (apenas quando expandido) */}
+                      {expandido && (
+                        <div className="px-4 pb-4 space-y-3 border-t border-gray-200 dark:border-gray-800 pt-3">
+
+                          {/* Métricas do Cluster */}
+                          <div className="space-y-2">
+                            {cluster.ClusterMediaDiasProblema !== null && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500 dark:text-gray-400">Média dias problema</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                  {formatarDecimal(cluster.ClusterMediaDiasProblema)} dias
+                                </span>
+                              </div>
+                            )}
+
+                            {cluster.ClusterMediaUrgencia !== null && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500 dark:text-gray-400">Urgência média</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                  {formatarDecimal(cluster.ClusterMediaUrgencia)}
+                                </span>
+                              </div>
+                            )}
+
+                            {cluster.ClusterMediaTempoResolucao !== null && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500 dark:text-gray-400">Tempo resolução</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                  {formatarDecimal(cluster.ClusterMediaTempoResolucao)}h
+                                </span>
+                              </div>
+                            )}
+
+                            {cluster.ClusterPercentualRiscoHumano !== null && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500 dark:text-gray-400">Risco de vida humana</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                  {formatarDecimal(cluster.ClusterPercentualRiscoHumano)}%
+                                </span>
+                              </div>
+                            )}
+
+                            {cluster.ClusterPercentualRiscoAnimal !== null && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500 dark:text-gray-400">Risco de vida animal</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                  {formatarDecimal(cluster.ClusterPercentualRiscoAnimal)}%
+                                </span>
+                              </div>
+                            )}
+
+                            {cluster.ClusterPercentualBloqueioVia !== null && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500 dark:text-gray-400">Atrapalha o trânsito</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                  {formatarDecimal(cluster.ClusterPercentualBloqueioVia)}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Urgências do Cluster */}
+                          {cluster.urgencias && cluster.urgencias.length > 0 && (
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+                              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                                <AlertTriangle size={12} />
+                                Urgências
+                              </p>
+                              <div className="space-y-1.5">
+                                {cluster.urgencias.map((urgencia) => {
+                                  const corUrgencia = {
+                                    URGENTE: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+                                    ALTA: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
+                                    MEDIA: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+                                    BAIXA: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                  }[urgencia.ClusterUrgenciaNome] || 'bg-gray-100 text-gray-800';
+
+                                  return (
+                                    <div key={urgencia.ClusterUrgenciaId} className="flex items-center justify-between text-xs">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${corUrgencia}`}>
+                                        {urgencia.ClusterUrgenciaNome}
+                                      </span>
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className="text-gray-500 dark:text-gray-500">
+                                          {urgencia.ClusterUrgenciaQtdChamados}
+                                        </span>
+                                        <span className="font-medium text-purple-600 dark:text-purple-400 min-w-[40px] text-right">
+                                          {formatarDecimal(urgencia.ClusterUrgenciaPercentual)}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tipos de Suporte do Cluster */}
+                          {cluster.tiposSuporte && cluster.tiposSuporte.length > 0 && (
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+                              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                                <Briefcase size={12} />
+                                Tipos de Suporte
+                              </p>
+                              <div className="space-y-1.5">
+                                {cluster.tiposSuporte.map((tipo) => (
+                                  <div
+                                    key={tipo.TipSupId}
+                                    className="flex items-center justify-between text-xs"
+                                  >
+                                    <span className="text-gray-600 dark:text-gray-400 truncate flex-1 mr-2">
+                                      {tipo.TipSupNom}
+                                    </span>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-gray-500 dark:text-gray-500">
+                                        {tipo.ClusterTipoQtdChamados}
+                                      </span>
+                                      <span className="font-medium text-purple-600 dark:text-purple-400 min-w-[40px] text-right">
+                                        {formatarDecimal(tipo.ClusterTipoPercentual)}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+          )}
         </div>
       )}
 

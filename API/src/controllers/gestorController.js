@@ -1360,6 +1360,27 @@ class GestorController {
                 }
             });
 
+            const totalChamadosProcessamento = await prisma.chamado.count({
+                where: {
+                    ChamadoStatus: 'PROCESSAMENTO',
+                    UnidadeId: gestorLogado.UnidadeId
+                }
+            });
+
+            const totalChamadosConcluidos = await prisma.chamado.count({
+                where: {
+                    ChamadoStatus: 'CONCLUIDO',
+                    UnidadeId: gestorLogado.UnidadeId
+                }
+            });
+
+            const totalChamadosCancelados = await prisma.chamado.count({
+                where: {
+                    ChamadoStatus: 'CANCELADO',
+                    UnidadeId: gestorLogado.UnidadeId
+                }
+            });
+
             // Status Chamados
             /*
             PROCESSAMENTO   // Pessoa acabou de abrir, em processamento sistema (Tipo, Riscos e Urgência)
@@ -1379,6 +1400,9 @@ class GestorController {
                     totalChamadosAtribuidos,
                     totalChamadosAtendimento,
                     totalChamadosFaltandoInformacao,
+                    totalChamadosProcessamento,
+                    totalChamadosConcluidos,
+                    totalChamadosCancelados,
                     totalChamadosPendentes,
                     totalChamadosRecusados,
                     totalDepartamentos,

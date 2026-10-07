@@ -1,5 +1,6 @@
 # Acesso ao BD PostGreSQL
 DATABASE_URL="postgresql://usuario:senha@ip-local:porta/nome_do_banco_de_dados?schema=public"
+DATABASE_URL_PYTHON="postgresql://usuario:senha@ip-local:porta/nome_do_banco_de_dados"
 
 # Porta usada na API
 PORT=5000

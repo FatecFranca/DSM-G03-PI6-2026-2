@@ -34,6 +34,8 @@ model Unidade {
   Equipe                Equipe[]
   Tecnico               Tecnico[]
   Solicitacao           Solicitacao[]
+  ExecucaoMineracao     ExecucaoMineracao[]
+  ConfiguracaoMineracao ConfiguracaoMineracao[]
 }
 
 model Gestor {
@@ -131,6 +133,7 @@ model TipoSuporte {
 
   Chamado               Chamado[]
   TipoSuporteUnidade    TipoSuporteUnidade[]
+  ClusterTipoSuporte    ClusterTipoSuporte[]
 }
 
 model TipoSuporteUnidade {
@@ -172,6 +175,7 @@ model Chamado {
   Unidade                   Unidade             @relation(fields: [UnidadeId], references: [UnidadeId])
   AtividadeChamado          AtividadeChamado[]
   HistoricoChamado          HistoricoChamado[]
+  ChamadosCluster           ChamadoCluster[]
 }
 
 model HistoricoChamado {
@@ -263,6 +267,95 @@ model AtividadeSolicitacao {
   Solicitacao  Solicitacao  @relation(fields: [SolicitacaoId], references: [SolicitacaoId])
 }
 
+model ExecucaoMineracao {
+  ExecucaoId                      String            @id @default(uuid())
+  UnidadeId                       Int
+  ExecucaoDtInicio                DateTime          @default(now())
+  ExecucaoDtFim                   DateTime?
+  ExecucaoQtdDados                Int               @default(0)
+  ExecucaoQtdClusters             Int               @default(0)
+  ExecucaoSilhouetteScore         Float?
+  ExecucaoDaviesBouldinScore      Float?
+  ExecucaoEstabilidadeScore       Float?
+  ExecucaoPercentualMenorCluster  Float?
+  ExecucaoScoreCombinado          Float?
+  ExecucaoStatus                  StatusMineracao
+  ExecucaoMensagemErro            String?
+
+  Unidade          Unidade @relation(fields: [UnidadeId], references: [UnidadeId])
+  Clusters         Cluster[]
+}
+
+model Cluster {
+  ClusterId                     String   @id @default(uuid())
+  ClusterNumero                 Int
+  ClusterQtdChamados            Int      @default(0)
+  ClusterMediaDiasProblema      Float?
+  ClusterPercentualRiscoHumano  Float?
+  ClusterPercentualRiscoAnimal  Float?
+  ClusterPercentualBloqueioVia  Float?
+  ClusterMediaTempoResolucao    Float?
+  ClusterMediaUrgencia          Float?
+  ExecucaoId                    String
+
+  Execucao            ExecucaoMineracao @relation(fields: [ExecucaoId], references: [ExecucaoId])
+  ChamadosCluster     ChamadoCluster[]
+  ClusterTipoSuporte  ClusterTipoSuporte[]
+  ClusterUrgencia     ClusterUrgencia[]
+
+  @@unique([ExecucaoId, ClusterNumero])
+}
+
+model ChamadoCluster {
+  ChamadoClusterId  String  @id @default(uuid())
+  ChamadoId         String
+  ClusterId         String
+
+  Chamado    Chamado @relation(fields: [ChamadoId], references: [ChamadoId])
+  Cluster    Cluster @relation(fields: [ClusterId], references: [ClusterId])
+
+  @@unique([ChamadoId, ClusterId])
+}
+
+model ConfiguracaoMineracao {
+  ConfiguracaoId                      String   @id @default(uuid())
+  UnidadeId                           Int      @unique
+  ConfiguracaoQtdClusters             Int
+  ConfiguracaoQtdChamadosBase         Int
+  ConfiguracaoSilhouetteScore         Float?
+  ConfiguracaoDaviesBouldinScore      Float?
+  ConfiguracaoScoreCombinado          Float?
+  ConfiguracaoPercentualRecalibracao  Float    @default(20)
+  ConfiguracaoDtCalibracao            DateTime @default(now())
+  ConfiguracaoAtivo                   Boolean  @default(true)
+
+  Unidade   Unidade   @relation(fields: [UnidadeId], references: [UnidadeId])
+}
+
+model ClusterTipoSuporte {
+  ClusterTipoSuporteId    String @id @default(uuid())
+  ClusterId               String
+  TipSupId                Int
+  ClusterTipoQtdChamados  Int
+  ClusterTipoPercentual   Float
+
+  Cluster       Cluster     @relation(fields: [ClusterId], references: [ClusterId])
+  TipoSuporte   TipoSuporte @relation(fields: [TipSupId], references: [TipSupId])
+
+  @@unique([ClusterId, TipSupId])
+}
+
+model ClusterUrgencia {
+  ClusterUrgenciaId           String            @id @default(uuid())
+  ClusterId                   String
+  ClusterUrgenciaNome         ChamadoUrgencia
+  ClusterUrgenciaQtdChamados  Int
+  ClusterUrgenciaPercentual   Float
+
+  Cluster     Cluster     @relation(fields: [ClusterId], references: [ClusterId])
+
+  @@unique([ClusterId, ClusterUrgenciaNome])
+}
 
 
 // Enums
@@ -387,4 +480,10 @@ enum AdministradorStatus {
   ATIVO
   INATIVO
   BLOQUEADO
+}
+
+enum StatusMineracao {
+  EXECUTANDO
+  CONCLUIDA
+  ERRO
 }

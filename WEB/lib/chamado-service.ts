@@ -83,6 +83,53 @@ export interface ListaChamadosResponse {
   paginacao: Paginacao;
 }
 
+export interface ClusterTipoSuporte {
+  TipSupId: number;
+  TipSupNom: string;
+  TipSupStatus: string;
+  ClusterTipoQtdChamados: number;
+  ClusterTipoPercentual: number;
+}
+
+export interface ClusterUrgencia {
+  ClusterUrgenciaId: string;
+  ClusterUrgenciaNome: 'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE';
+  ClusterUrgenciaQtdChamados: number;
+  ClusterUrgenciaPercentual: number;
+}
+
+export interface Cluster {
+  ClusterId: string;
+  ClusterNumero: number;
+  ClusterQtdChamados: number;
+  ClusterMediaDiasProblema: number | null;
+  ClusterPercentualRiscoHumano: number | null;
+  ClusterPercentualRiscoAnimal: number | null;
+  ClusterPercentualBloqueioVia: number | null;
+  ClusterMediaTempoResolucao: number | null;
+  ClusterMediaUrgencia: number | null;
+  totalChamadosVinculados: number;
+  tiposSuporte: ClusterTipoSuporte[];
+  urgencias: ClusterUrgencia[];
+}
+
+export interface UltimaMineracao {
+  ExecucaoId: string;
+  UnidadeId: number;
+  ExecucaoDtInicio: string;
+  ExecucaoDtFim: string | null;
+  ExecucaoQtdDados: number;
+  ExecucaoQtdClusters: number;
+  ExecucaoSilhouetteScore: number | null;
+  ExecucaoDaviesBouldinScore: number | null;
+  ExecucaoScoreCombinado: number | null;
+  ExecucaoPercentualMenorCluster: number | null;
+  ExecucaoEstabilidadeScore: number | null;
+  ExecucaoStatus: string;
+  ExecucaoMensagemErro: string | null;
+  clusters: Cluster[];
+}
+
 export interface Estatisticas {
   periodo: {
     dataInicio: string;
@@ -92,6 +139,7 @@ export interface Estatisticas {
   porStatus: Record<string, number>;
   porUrgencia: Record<string, number>;
   porUrgenciaFechados: Record<string, number>;
+  ultimaMineracao?: UltimaMineracao | null;
 }
 
 export async function listarChamados(filters: ChamadoFilters = {}): Promise<ListaChamadosResponse> {

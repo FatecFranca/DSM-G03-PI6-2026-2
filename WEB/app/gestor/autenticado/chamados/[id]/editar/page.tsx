@@ -367,7 +367,7 @@ export default function EditarChamadoPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                 <Car size={16} />
-                Via/Rua está bloqueada pelo problema?
+                Atrapalhando trânsito (veículos ou pedestres)?
               </label>
               <select
                 value={formData.ChamadoBloqueioVia ? 'true' : 'false'}
