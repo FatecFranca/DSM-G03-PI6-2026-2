@@ -2,6 +2,7 @@
 const { PythonShell } = require('python-shell');
 const path = require('path');
 const rabbitmq = require('../config/rabbitmq');
+require('dotenv').config()
 
 class ClassificadorWorker {
     constructor() {
@@ -29,6 +30,7 @@ class ClassificadorWorker {
     }
 
     async inicializarClassificador() {
+        console.log('process.env.PYTHON = ', process.env.PYTHON);
         return new Promise((resolve, reject) => {
             const options = {
                 mode: 'text',
@@ -42,7 +44,7 @@ class ClassificadorWorker {
             
             const timeout = setTimeout(() => {
                 reject(new Error('Timeout ao inicializar classificador'));
-            }, 20000);
+            }, 30000);
             
             this.classificador.once('message', (message) => {
                 clearTimeout(timeout);
