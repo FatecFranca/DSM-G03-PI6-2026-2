@@ -89,7 +89,9 @@ def salvar_configuracao_mineracao(
     quantidade_chamados,
     silhouette,
     davies_bouldin,
-    score_combinado
+    score_combinado,
+    estabilidade,
+    percentual_menor
 ):
 
     cursor = conn.cursor()
@@ -106,7 +108,9 @@ def salvar_configuracao_mineracao(
             "ConfiguracaoScoreCombinado",
             "ConfiguracaoPercentualRecalibracao",
             "ConfiguracaoDtCalibracao",
-            "ConfiguracaoAtivo"
+            "ConfiguracaoAtivo",
+            "ConfiguracaoEstabilidade",
+            "ConfiguracaoPercentualMenorCluster"
         )
         VALUES
         (
@@ -119,7 +123,9 @@ def salvar_configuracao_mineracao(
             %s,
             20,
             NOW(),
-            TRUE
+            TRUE,
+            %s,
+            %s
         )
         ON CONFLICT ("UnidadeId")
         DO UPDATE SET
@@ -129,7 +135,9 @@ def salvar_configuracao_mineracao(
             "ConfiguracaoDaviesBouldinScore" = EXCLUDED."ConfiguracaoDaviesBouldinScore",
             "ConfiguracaoScoreCombinado" = EXCLUDED."ConfiguracaoScoreCombinado",
             "ConfiguracaoDtCalibracao" = NOW(),
-            "ConfiguracaoAtivo" = TRUE
+            "ConfiguracaoAtivo" = TRUE,
+            "ConfiguracaoEstabilidade" = EXCLUDED."ConfiguracaoEstabilidade",
+            "ConfiguracaoPercentualMenorCluster" = EXCLUDED."ConfiguracaoPercentualMenorCluster"
     """
 
     cursor.execute(
@@ -140,7 +148,9 @@ def salvar_configuracao_mineracao(
             quantidade_chamados,
             silhouette,
             davies_bouldin,
-            score_combinado
+            score_combinado,
+            estabilidade,
+            percentual_menor
         )
     )
 
@@ -160,7 +170,9 @@ def buscar_configuracao_mineracao(conn, unidade_id):
             "ConfiguracaoDtCalibracao",
             "ConfiguracaoSilhouetteScore",
             "ConfiguracaoDaviesBouldinScore",
-            "ConfiguracaoScoreCombinado"
+            "ConfiguracaoScoreCombinado",
+            "ConfiguracaoEstabilidade",
+            "ConfiguracaoPercentualMenorCluster"
         FROM "ConfiguracaoMineracao"
         WHERE
             "UnidadeId" = %s
@@ -2009,7 +2021,9 @@ def main():
                 len(df),
                 melhor_silhouette,
                 melhor_davies,
-                melhor_score
+                melhor_score,
+                melhor_estabilidade,
+                melhor_percentual_menor
             )
 
             # O modelo final já foi treinado após a fusão.
@@ -2039,8 +2053,12 @@ def main():
                 data_calibracao,
                 silhouette_configurado,
                 davies_configurado,
-                score_configurado
+                score_configurado,
+                melhor_estabilidade,
+                melhor_percentual_menor,
             ) = configuracao
+
+            print(configuracao)
 
             precisa_recalibrar, crescimento = (
                 verificar_recalibracao(

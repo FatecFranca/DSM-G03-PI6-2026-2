@@ -328,6 +328,8 @@ model ConfiguracaoMineracao {
   ConfiguracaoPercentualRecalibracao  Float    @default(20)
   ConfiguracaoDtCalibracao            DateTime @default(now())
   ConfiguracaoAtivo                   Boolean  @default(true)
+  ConfiguracaoEstabilidade            Float?
+  ConfiguracaoPercentualMenorCluster  Float?
 
   Unidade   Unidade   @relation(fields: [UnidadeId], references: [UnidadeId])
 }

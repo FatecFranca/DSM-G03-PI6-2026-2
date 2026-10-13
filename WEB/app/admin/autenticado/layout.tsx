@@ -15,7 +15,8 @@ import {
   Menu,
   ChevronRight,
   ChevronLeft,
-  UserCircle
+  UserCircle,
+  DatabaseSearch,
 } from "lucide-react"
 
 interface MenuItem {
@@ -74,6 +75,11 @@ export default function AdminLayout({
       title: "Tipos Chamados",
       href: "/admin/autenticado/tiposchamados",
       icon: <Tags size={20} />
+    },
+    {
+      title: "Mineração",
+      href: "/admin/autenticado/mineracao",
+      icon: <DatabaseSearch size={20} />
     }
   ]
 

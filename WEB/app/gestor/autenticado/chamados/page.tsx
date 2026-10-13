@@ -33,7 +33,7 @@ import {
   Info,
 } from "lucide-react"
 import { listarChamados, getEstatisticas, type Chamado, type ChamadoFilters, type Estatisticas } from "@/lib/chamado-service"
-import { formatarDataBrasil } from '@/utils/dateUtils'
+import { formatarDataBrasil, formatarDecimal, numeroParaLetra } from '@/utils/dateUtils'
 
 // Componente de Status Badge
 function StatusBadge({ status }: { status: string }) {
@@ -80,12 +80,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// Formata número decimal com vírgula
-function formatarDecimal(valor: number | null | undefined, casas: number = 2): string {
-  if (valor === null || valor === undefined) return 'N/A';
-  return valor.toFixed(casas).replace('.', ',');
-}
-
 // Componente de Tooltip simples
 function Tooltip({ children, text }: { children: React.ReactNode; text: string }) {
   return (
@@ -97,32 +91,6 @@ function Tooltip({ children, text }: { children: React.ReactNode; text: string }
       </div>
     </div>
   );
-}
-
-// Converte número em letra(s) do alfabeto no estilo "coluna de planilha"
-// 0 → A, 1 → B, ..., 25 → Z, 26 → AA, 27 → AB, ...
-function numeroParaLetra(numero: number): string {
-  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const base = letras.length; // 26
-
-  if (numero < 0) {
-    return `?${numero}`; // Fallback para números negativos
-  }
-
-  let resultado = '';
-  let n = numero;
-
-  // Sistema "bijective base-26" (A=1, B=2, ..., Z=26, AA=27, ...)
-  // Como aqui A=0, fazemos o ajuste somando 1 antes de cada divisão.
-  n = n + 1;
-
-  while (n > 0) {
-    const resto = (n - 1) % base;
-    resultado = letras[resto] + resultado;
-    n = Math.floor((n - 1) / base);
-  }
-
-  return resultado;
 }
 
 // Componente de Urgência Badge

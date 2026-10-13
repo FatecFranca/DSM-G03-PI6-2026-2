@@ -26,4 +26,6 @@ CORS_ORIGIN=http://servidor3.com,http://servidor4.com
 
 PYTHON=python
 
+PYTHON_MINERACAO=python
+
 RABBITMQ_URL=amqp://localhost:9999
