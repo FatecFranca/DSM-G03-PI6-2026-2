@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
 const { gravarLog } = require('../utils/logGrava.js');
+const { gerarAccessToken, gerarRefreshTokenBruto, hashRefreshToken, calcularExpiracaoRefresh } = require('../utils/tokenUtils');
 
 class PessoaController {
 
@@ -27,11 +28,9 @@ class PessoaController {
                 });
             }
 
-            // Buscar pessoa pelo usuário (CPF)
+            // Buscar pessoa
             const pessoa = await prisma.pessoa.findUnique({
-                where: {
-                    PessoaCPF: PessoaUsuario.trim()
-                },
+                where: { PessoaCPF: PessoaUsuario.trim() },
                 include: {
                     Unidade: {
                         select: {
@@ -43,64 +42,73 @@ class PessoaController {
                 }
             });
 
-            // Verificar se pessoa existe
-            if (!pessoa) {
-                return res.status(400).json({
-                    error: 'Usuário ou senha inválidos'
-                });
-            }
-
-            // Verificar se a pessoa está ativa
+            if (!pessoa) return res.status(400).json({ error: 'Usuário ou senha inválidos' });
             if (pessoa.PessoaStatus !== 'ATIVA') {
-                return res.status(403).json({
-                    error: 'Sua conta está inativa ou bloqueada. Entre em contato com o gestor da sua unidade.'
-                });
+                return res.status(403).json({ error: 'Sua conta está inativa ou bloqueada...' });
             }
-
-            // Verificar se a unidade está ativa
             if (pessoa.Unidade.UnidadeStatus !== 'ATIVA') {
-                return res.status(403).json({
-                    error: 'A unidade está inativa ou bloqueada. Não é possível realizar login no momento.'
-                });
+                return res.status(403).json({ error: 'A unidade está inativa ou bloqueada...' });
             }
 
-            // Verificar senha com pepper
             const senhaComPepper = process.env.PEPPER_SENHA_PESSOA + PessoaSenha.trim();
             const senhaValida = await bcrypt.compare(senhaComPepper, pessoa.PessoaSenha);
-
             if (!senhaValida) {
-                return res.status(400).json({
-                    error: 'Usuário ou senha inválidos'
-                });
+                return res.status(400).json({ error: 'Usuário ou senha inválidos' });
             }
 
-            // Gerar token JWT
-            const token = jwt.sign(
-                {
-                    usuarioId: pessoa.PessoaId,
-                    usuarioTipo: 'PESSOA',
-                    usuarioEmail: pessoa.PessoaEmail,
-                    usuarioNome: pessoa.PessoaNome,
-                    unidadeId: pessoa.UnidadeId
-                },
-                process.env.JWT_SECRET,
-                { expiresIn: '8h' }
-            );
+            // ============================================
+            // Gerar access token (JWT, 15 min)
+            // ============================================
+            const accessToken = gerarAccessToken({
+                usuarioId: pessoa.PessoaId,
+                usuarioTipo: 'PESSOA',
+                usuarioEmail: pessoa.PessoaEmail,
+                usuarioNome: pessoa.PessoaNome,
+                unidadeId: pessoa.UnidadeId
+            });
 
-            // Retornar dados da pessoa (sem a senha)
+            // ============================================
+            // Gerar refresh token (opaco, guardado em hash)
+            // ============================================
+            const refreshTokenBruto = gerarRefreshTokenBruto();
+            const refreshTokenHash = hashRefreshToken(refreshTokenBruto);
+            const refreshExpiraEm = calcularExpiracaoRefresh(manterLogado);
+
+            await prisma.refreshToken.create({
+                data: {
+                    RefreshTokenHash: refreshTokenHash,
+                    PessoaId: pessoa.PessoaId,
+                    RefreshTokenExpiraEm: refreshExpiraEm,
+                    RefreshTokenUserAgent: (req.headers['user-agent'] || '').slice(0, 500),
+                    RefreshTokenIp: req.ip || req.connection?.remoteAddress || null
+                }
+            });
+
+            // Limpar tokens antigos expirados/revogados desta pessoa (higiene)
+            await prisma.refreshToken.deleteMany({
+                where: {
+                    PessoaId: pessoa.PessoaId,
+                    OR: [
+                        { RefreshTokenExpiraEm: { lt: new Date() } },
+                        { RefreshTokenRevogado: true }
+                    ]
+                }
+            });
+
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
 
-            // --- Gravar log de login
+            // Log
             const LogAcao = 'LOGINPESSOA';
-            const LogDetalhe = 'Foi realizado o login pela pessao de ID (' + pessoa.PessoaId + ' | ' + pessoa.PessoaNome + ')';
+            const LogDetalhe = `Login da pessoa ${pessoa.PessoaId} | manterLogado=${manterLogado}`;
             await gravarLog(pessoa.PessoaId, LogAcao, 'PESSOA', LogDetalhe, pessoa.PessoaId);
-            // ---
 
             return res.status(200).json({
                 message: 'Login realizado com sucesso',
                 data: {
                     usuario: pessoaSemSenha,
-                    token,
+                    token: accessToken,             // access token JWT (15 min)
+                    refreshToken: refreshTokenBruto, // refresh token opaco (3 meses se manterLogado)
+                    expiraEm: refreshExpiraEm.toISOString(),
                     tipo: 'PESSOA'
                 }
             });
@@ -916,7 +924,7 @@ class PessoaController {
             return res.status(500).json({ error: 'Erro ao listar pessoas por unidade' });
         }
     }
-    
+
 }
 
 module.exports = new PessoaController();

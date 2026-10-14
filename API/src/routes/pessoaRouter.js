@@ -2,6 +2,7 @@
 const express = require('express');
 const pessoaController = require('../controllers/pessoaController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const authController = require('../controllers/authController');
 
 const router = express.Router();
 
@@ -57,6 +58,10 @@ const router = express.Router();
  *         description: Conta inativa ou bloqueada
  */
 router.post('/login', pessoaController.login);
+
+router.post('/refresh', authController.refreshPessoa);
+
+router.post('/logout', authController.logoutPessoa);
 
 // Todas as rotas abaixo exigem autenticação
 router.use(authMiddleware);

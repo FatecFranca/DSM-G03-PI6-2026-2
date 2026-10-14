@@ -359,6 +359,21 @@ model ClusterUrgencia {
   @@unique([ClusterId, ClusterUrgenciaNome])
 }
 
+model RefreshToken {
+  RefreshTokenId        String    @id @default(uuid())
+  RefreshTokenHash      String    @unique @db.VarChar(255)
+  RefreshUsuarioId      String
+  RefreshUsuarioVinculo String    @db.VarChar(20) // PESSOA/TECNICO/GESTOR/ADMINISTRADOR
+  RefreshTokenExpiraEm  DateTime
+  RefreshTokenRevogado  Boolean   @default(false)
+  RefreshTokenDtCriacao DateTime  @default(now())
+  RefreshTokenDtUso     DateTime?
+  RefreshTokenUserAgent String?   @db.VarChar(500)
+  RefreshTokenIp        String?   @db.VarChar(45)
+
+  @@index([RefreshTokenHash])
+}
+
 
 // Enums
 enum UnidadeStatus {
