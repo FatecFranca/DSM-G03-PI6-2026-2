@@ -697,10 +697,10 @@ def encontrar_melhor_k(X):
 
     resultados = []
 
-    print("\n")
-    print("=" * 70)
-    print("AVALIAÇÃO DOS VALORES DE K")
-    print("=" * 70)
+    #print("\n")
+    #print("=" * 70)
+    #print("AVALIAÇÃO DOS VALORES DE K")
+    #print("=" * 70)
 
     for k in range(K_MIN, k_maximo + 1):
 
@@ -714,6 +714,7 @@ def encontrar_melhor_k(X):
 
         resultados.append(resultado)
 
+        """
         print(
             f"K={k:2d} | "
             f"Silhouette={resultado['silhouette']:.4f} | "
@@ -723,6 +724,7 @@ def encontrar_melhor_k(X):
             f"({resultado['percentual_menor_cluster'] * 100:.2f}%) | "
             f"Dist. mínima={resultado['distancia_minima_centroides']:.4f}"
         )
+        """
 
     if not resultados:
         raise Exception(
@@ -738,13 +740,14 @@ def encontrar_melhor_k(X):
         key=lambda x: x["score_combinado"]
     )
 
-    print("\n")
-    print("=" * 70)
-    print("RESULTADOS DA SELEÇÃO DO K INICIAL")
-    print("=" * 70)
+    #print("\n")
+    #print("=" * 70)
+    #print("RESULTADOS DA SELEÇÃO DO K INICIAL")
+    #print("=" * 70)
 
     for resultado in resultados:
 
+        """
         print(
             f"K={resultado['k']:2d} | "
             f"Silhouette={resultado['silhouette']:.4f} | "
@@ -753,10 +756,13 @@ def encontrar_melhor_k(X):
             f"Menor={resultado['percentual_menor_cluster'] * 100:.2f}% | "
             f"Score={resultado['score_combinado']:.4f}"
         )
+        """
 
+    """
     print(
         f"\nK inicial selecionado: {melhor['k']}"
     )
+    """
 
     return (
         melhor["k"],
@@ -1185,11 +1191,12 @@ def determinar_k_efetivo(
         grupos
     )
 
-    print("\n")
-    print("=" * 70)
-    print("ANÁLISE DE REDUNDÂNCIA DOS CLUSTERS")
-    print("=" * 70)
+    #print("\n")
+    #print("=" * 70)
+    #print("ANÁLISE DE REDUNDÂNCIA DOS CLUSTERS")
+    #print("=" * 70)
 
+    """
     print(
         f"K inicial: {k_inicial}"
     )
@@ -1219,22 +1226,27 @@ def determinar_k_efetivo(
         f"Clusters após a fusão: "
         f"{k_efetivo}"
     )
+    """
 
     for novo_cluster, grupo in enumerate(grupos):
 
         if len(grupo) > 1:
 
+            """
             print(
                 f"Grupo final {novo_cluster}: "
                 f"fundiu clusters iniciais {grupo}"
             )
+            """
 
     if k_efetivo == k_inicial:
 
+        """
         print(
             "\nNenhum cluster foi considerado "
             "redundante pelo limite automático."
         )
+        """
 
     # --------------------------------------------------------
     # Avalia a solução diretamente obtida pela fusão.
@@ -1245,6 +1257,7 @@ def determinar_k_efetivo(
         labels_fundidos
     )
 
+    """
     print("\nAvaliação após fusão:")
     print(
         f"K={avaliacao_fusao['k']} | "
@@ -1252,6 +1265,7 @@ def determinar_k_efetivo(
         f"Davies-Bouldin={avaliacao_fusao['davies_bouldin']:.4f} | "
         f"Menor cluster={avaliacao_fusao['tamanho_minimo']}"
     )
+    """
 
     # --------------------------------------------------------
     # K-Means final
@@ -1274,6 +1288,7 @@ def determinar_k_efetivo(
         avaliacao_final["estabilidade"]
     )
 
+    """
     print("\nValidação do K-Means final:")
     print(
         f"K={avaliacao_final['k']} | "
@@ -1282,6 +1297,7 @@ def determinar_k_efetivo(
         f"Estabilidade={estabilidade_final:.4f} | "
         f"Menor cluster={avaliacao_final['tamanho_minimo']}"
     )
+    """
 
     return (
         k_efetivo,
@@ -1323,10 +1339,11 @@ def analisar_clusters(df, modelo, labels):
 
     analise = []
 
-    print("\n")
-    print("=" * 70)
-    print("ANÁLISE DOS CLUSTERS")
-    print("=" * 70)
+
+    #print("\n")
+    #print("=" * 70)
+    #print("ANÁLISE DOS CLUSTERS")
+    #print("=" * 70)
 
     for cluster_num in sorted(df_analise["Cluster"].unique()):
 
@@ -1362,15 +1379,15 @@ def analisar_clusters(df, modelo, labels):
             "TempoResolucaoHoras"
         ].mean()
 
-        print(f"\nCluster {cluster_num}")
-        print("-" * 50)
+        #print(f"\nCluster {cluster_num}")
+        #print("-" * 50)
 
-        print(f"Quantidade de chamados: {quantidade}")
-        print(f"Média de dias com problema: {media_dias:.2f}")
-        print(f"Risco humano: {risco_humano:.2f}%")
-        print(f"Risco animal: {risco_animal:.2f}%")
-        print(f"Bloqueio de via: {bloqueio:.2f}%")
-        print(f"Média de resolução: {media_tempo:.2f} horas")
+        #print(f"Quantidade de chamados: {quantidade}")
+        #print(f"Média de dias com problema: {media_dias:.2f}")
+        #print(f"Risco humano: {risco_humano:.2f}%")
+        #print(f"Risco animal: {risco_animal:.2f}%")
+        #print(f"Bloqueio de via: {bloqueio:.2f}%")
+        #print(f"Média de resolução: {media_tempo:.2f} horas")
 
         analise.append({
             "ClusterNumero": int(cluster_num),
@@ -1633,6 +1650,7 @@ def salvar_clusters(
             .value_counts()
         )
 
+        """
         print(
             f"\nCluster {cluster_num} - Tipos de suporte:"
         )
@@ -1641,6 +1659,7 @@ def salvar_clusters(
             dados_cluster["TipSupId"]
             .value_counts()
         )
+        """
 
         for tip_sup_id, quantidade_tipo in tipos_cluster.items():
 
@@ -1693,6 +1712,7 @@ def salvar_clusters(
             .value_counts()
         )
 
+        """
         print(
             f"\nCluster {cluster_num} - Urgências:"
         )
@@ -1700,6 +1720,7 @@ def salvar_clusters(
         print(
             urgencias_cluster
         )
+        """
 
         for urgencia, quantidade_urgencia in urgencias_cluster.items():
 
@@ -1781,14 +1802,14 @@ def salvar_clusters(
 
 def main():
 
-    print("=" * 60)
-    print("INICIANDO MINERAÇÃO DE CHAMADOS")
-    print("=" * 60)
+    #print("=" * 60)
+    #print("INICIANDO MINERAÇÃO DE CHAMADOS")
+    #print("=" * 60)
 
     argumentos = parse_argumentos()
     unidade_id = argumentos.unidade_id
 
-    print(f"Unidade alvo: {unidade_id}")
+    #print(f"Unidade alvo: {unidade_id}")
 
     conn = None
     execucao_id = None
@@ -1801,7 +1822,7 @@ def main():
 
         conn = conectar_banco()
 
-        print("Banco conectado.")
+        #print("Banco conectado.")
 
         # ----------------------------------------------------
         # Criar registro da execução
@@ -1809,9 +1830,11 @@ def main():
 
         execucao_id = criar_execucao(conn, unidade_id)
 
+        """
         print(
             f"Execução criada: {execucao_id}"
         )
+        """
 
         # ----------------------------------------------------
         # Buscar dados
@@ -1819,9 +1842,11 @@ def main():
 
         df = buscar_chamados(conn, unidade_id)
 
+        """
         print(
             f"Chamados encontrados: {len(df)}"
         )
+        """
 
         if len(df) < MINIMO_CHAMADOS:
 
@@ -1844,7 +1869,7 @@ def main():
                 mensagem
             )
 
-            print(mensagem)
+            #print(mensagem)
 
             return
 
@@ -1854,9 +1879,11 @@ def main():
 
         df, X = preparar_dados(df)
 
+        """
         print(
             f"Quantidade de características: {X.shape[1]}"
         )
+        """
 
         # ----------------------------------------------------
         # Normalização
@@ -1877,7 +1904,7 @@ def main():
             # CALIBRAÇÃO
             # ==========================================
 
-            print("\nModo: CALIBRAÇÃO")
+            #print("\nModo: CALIBRAÇÃO")
 
             (
                 k_inicial,
@@ -1961,11 +1988,12 @@ def main():
                 avaliacao_final
             )
 
-            print("\n")
-            print("=" * 70)
-            print("RESULTADO FINAL DA CALIBRAÇÃO")
-            print("=" * 70)
+            #print("\n")
+            #print("=" * 70)
+            #print("RESULTADO FINAL DA CALIBRAÇÃO")
+            #print("=" * 70)
 
+            """
             print(
                 f"K inicial: {k_inicial}"
             )
@@ -2013,6 +2041,7 @@ def main():
                 f"Limite de redundância: "
                 f"{limite_redundancia:.4f}"
             )
+            """
 
             salvar_configuracao_mineracao(
                 conn,
@@ -2036,7 +2065,7 @@ def main():
             # MINERAÇÃO NORMAL
             # ==========================================
 
-            print("\nModo: MINERAÇÃO NORMAL")
+            #print("\nModo: MINERAÇÃO NORMAL")
 
             if not configuracao:
 
@@ -2058,7 +2087,7 @@ def main():
                 melhor_percentual_menor,
             ) = configuracao
 
-            print(configuracao)
+            #print(configuracao)
 
             precisa_recalibrar, crescimento = (
                 verificar_recalibracao(
@@ -2068,6 +2097,7 @@ def main():
                 )
             )
 
+            """
             print(
                 f"Quantidade na calibração: "
                 f"{quantidade_base}"
@@ -2087,13 +2117,16 @@ def main():
                 f"Limite para recalibração: "
                 f"{percentual_recalibracao:.2f}%"
             )
+            """
 
             if precisa_recalibrar:
 
+                """
                 print(
                     "\nATENÇÃO: a unidade atingiu "
                     "o limite para recalibração."
                 )
+                """
 
                 raise Exception(
                     "Recalibração necessária. "
@@ -2101,10 +2134,12 @@ def main():
                     "--calibrar."
                 )
 
+            """
             print(
                 f"\nUtilizando K configurado: "
                 f"{melhor_k}"
             )
+            """
 
             melhor_silhouette = silhouette_configurado
             melhor_davies     = davies_configurado
@@ -2134,8 +2169,10 @@ def main():
             labels
         )
 
+        """
         for cluster in analise_clusters:
             print(cluster)
+        """
 
         # ----------------------------------------------------
         # Salvar
@@ -2163,6 +2200,7 @@ def main():
             None
         )
 
+        """
         print("\nMineração concluída.")
 
         print(
@@ -2184,11 +2222,12 @@ def main():
         print(
             f"Score combinado: {melhor_score:.4f}"
         )
+        """
 
     except Exception as erro:
 
-        print("\nERRO NA MINERAÇÃO:")
-        print(str(erro))
+        #print("\nERRO NA MINERAÇÃO:")
+        #print(str(erro))
 
         traceback.print_exc()
 

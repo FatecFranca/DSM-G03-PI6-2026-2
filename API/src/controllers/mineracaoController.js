@@ -1,10 +1,12 @@
 // src/controllers/mineracaoController.js
 const prisma = require('../prisma.js');
-const { spawn } = require('child_process');
+//const { spawn } = require('child_process');
 const path = require('path');
-const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
+//const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 const { gravarLog } = require('../utils/logGrava.js');
+const { mineracaoRabbitMQ } = require('../services/mineracaoRabbitMQ');
 
+/*
 const PYTHON_PATH =
   process.env.PYTHON_MINERACAO ||
   '/home/luispedro/PI-6SM-DSM-API-WEB-IA-MSG/API/venv/bin/python';
@@ -19,85 +21,23 @@ function dispararScriptPython(unidadeId, calibrar) {
     const args = ['--unidade-id', String(unidadeId)];
     if (calibrar) args.push('--calibrar');
 
-    console.log(`🐍 Executando: ${PYTHON_PATH} ${SCRIPT_PATH} ${args.join(' ')}`);
+    //console.log(`🐍 Executando: ${PYTHON_PATH} ${SCRIPT_PATH} ${args.join(' ')}`);
 
     const processo = spawn(PYTHON_PATH, [SCRIPT_PATH, ...args], {
       cwd: path.join(__dirname, '..', 'ia')
     });
 
-    /*
-    let stdout = '';
-    let stderr = '';
-
-    processo.stdout.on('data', (data) => {
-      const txt = data.toString();
-      stdout += txt;
-      process.stdout.write(`[mineracao:${execucaoId}] ${txt}`);
-    });
-
-    processo.stderr.on('data', (data) => {
-      const txt = data.toString();
-      stderr += txt;
-      process.stderr.write(`[mineracao:${execucaoId}:err] ${txt}`);
-    });
-    */
-
     processo.on('error', async (err) => {
-      console.error('Erro ao iniciar processo Python:', err);
-      /*
-      await prisma.execucaoMineracao.update({
-        where: { ExecucaoId: execucaoId },
-        data: {
-          ExecucaoStatus: 'ERRO',
-          ExecucaoDtFim: getBrasilDateTime(),
-          ExecucaoMensagemErro: err.message
-        }
-      });
-      */
+      //console.error('Erro ao iniciar processo Python:', err);
       reject(err);
     });
 
     processo.on('close', async (code) => {
-      console.log(`[mineracao na unidade:${unidadeId}] processo encerrado com código ${code}`);
-
-      // O script Python deve gravar os clusters/atualizar a execução.
-      // Aqui só garantimos que, se ainda estiver PROCESSANDO, marcamos o resultado final.
-      /*
-      try {
-        const execucaoAtual = await prisma.execucaoMineracao.findUnique({
-          where: { ExecucaoId: execucaoId }
-        });
-
-        if (execucaoAtual && execucaoAtual.ExecucaoStatus === 'PROCESSANDO') {
-          if (code === 0) {
-            await prisma.execucaoMineracao.update({
-              where: { ExecucaoId: execucaoId },
-              data: {
-                ExecucaoStatus: 'CONCLUIDA',
-                ExecucaoDtFim: getBrasilDateTime()
-              }
-            });
-          } else {
-            await prisma.execucaoMineracao.update({
-              where: { ExecucaoId: execucaoId },
-              data: {
-                ExecucaoStatus: 'ERRO',
-                ExecucaoDtFim: getBrasilDateTime(),
-                ExecucaoMensagemErro:
-                  stderr.slice(-1000) || `Processo finalizado com código ${code}`
-              }
-            });
-          }
-        }
-        resolve({ code });
-      } catch (e) {
-        console.error('Erro ao finalizar execução:', e);
-        reject(e);
-      }
-      */
+      //console.log(`[mineracao na unidade:${unidadeId}] processo encerrado com código ${code}`);
     });
   });
 }
+*/
 
 class MineracaoController {
   // ============================================================
@@ -377,6 +317,7 @@ class MineracaoController {
           ExecucaoStatus: 'EXECUTANDO'
         }
       });
+
       if (emAndamento) {
         return res.status(409).json({
           error: 'Já existe uma execução em andamento para esta unidade',
@@ -384,37 +325,36 @@ class MineracaoController {
         });
       }
 
-      // Cria registro inicial em EXECUTANDO
-      // Quem cria a execução é o processo python
-      /*
-      const execucao = await prisma.execucaoMineracao.create({
-        data: {
-          UnidadeId: uid,
-          ExecucaoStatus: 'EXECUTANDO',
-          ExecucaoDtInicio: getBrasilDateTime()
-        }
-      });
-      */
-
       // Dispara o Python em background — se não der erro na chamada, não bloqueia a resposta
+      /*
       dispararScriptPython(uid, calibrar).catch((err) => {
         console.error('Erro no processo Python de mineração:', err);
         return res.status(500).json({ error: 'Erro ao executar mineração (PY)' });
       });
+      */
 
-      const LogAcao = 'EXECUTARMINERACAO';
-      const LogDetalhe = `Execução de mineração iniciada para unidade ${uid} (calibrar=${calibrar})`;
-      await gravarLog(
-        String(req.usuario.usuarioId).trim(),
-        LogAcao,
-        req.usuario.usuarioTipo,
-        LogDetalhe,
-        String(uid).trim()
+      const publicado = await mineracaoRabbitMQ.enfileirarExecucao(
+        uid,
+        calibrar
       );
 
-      return res.status(202).json({
-        message: 'Execução de mineração iniciada'
-      });
+      if (!publicado) {
+        return res.status(500).json({ error: 'Erro ao executar mineração (PY)' });
+      } else {
+        const LogAcao = 'EXECUTARMINERACAO';
+        const LogDetalhe = `Execução de mineração iniciada para unidade ${uid} (calibrar=${calibrar})`;
+        await gravarLog(
+          String(req.usuario.usuarioId).trim(),
+          LogAcao,
+          req.usuario.usuarioTipo,
+          LogDetalhe,
+          String(uid).trim()
+        );
+
+        return res.status(202).json({
+          message: 'Execução de mineração iniciada'
+        });
+      }
     } catch (error) {
       console.error('Erro ao executar mineração:', error);
       return res.status(500).json({ error: 'Erro ao executar mineração' });

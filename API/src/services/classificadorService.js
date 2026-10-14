@@ -1,9 +1,9 @@
 // src/services/classificadorService.js
 const { classificadorRabbitMQ } = require('./classificadorRabbitMQ');
-const prisma = require('../prisma.js');
+//const prisma = require('../prisma.js');
 
 // Inicializar o RabbitMQ
-classificadorRabbitMQ.init().catch(console.error);
+//classificadorRabbitMQ.init().catch(console.error);
 
 
 // Processa classificação em background usando RabbitMQ
