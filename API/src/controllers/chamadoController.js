@@ -638,26 +638,60 @@ class ChamadoController {
                 filtro.PessoaId = usuarioLogado.usuarioId;
             }
             else if (usuarioLogado.usuarioTipo === 'TECNICO') {
-                // Técnico vê chamados da sua unidade OU atribuídos à sua equipe
                 const tecnico = await prisma.tecnico.findUnique({
                     where: { TecnicoId: usuarioLogado.usuarioId },
                     include: {
                         TecnicoEquipe: {
-                            where: {
-                                TecEquStatus: 'ATIVO'
-                            },
-                            select: {
-                                EquipeId: true
-                            }
+                            where: { TecEquStatus: 'ATIVO' },
+                            select: { EquipeId: true }
                         }
                     }
                 });
 
-                if (tecnico) {
-                    filtro.AND = [
-                        { UnidadeId: tecnico.UnidadeId },
-                        { EquipeId: { in: tecnico.TecnicoEquipe.map(te => te.EquipeId) } }
-                    ];
+                if (!tecnico) {
+                    return res.status(403).json({ error: 'Técnico não encontrado' });
+                }
+
+                const equipesDoTecnico = tecnico.TecnicoEquipe.map(te => te.EquipeId);
+
+                // Técnico sem equipe ativa não vê nada — curto-circuita
+                if (equipesDoTecnico.length === 0) {
+                    return res.status(200).json({
+                        data: [],
+                        paginacao: {
+                            paginaAtual: 1,
+                            limitePorPagina: 10,
+                            totalRegistros: 0,
+                            totalPaginas: 0
+                        }
+                    });
+                }
+
+                // Filtro base: apenas chamados das equipes do técnico
+                filtro.EquipeId = { in: equipesDoTecnico };
+
+                // Se o app passou `equipeId`, respeitar (apenas se for uma das equipes do técnico)
+                if (equipeId) {
+                    if (equipesDoTecnico.includes(equipeId)) {
+                        filtro.EquipeId = equipeId;
+                    } else {
+                        // Técnico pedindo equipe que não é dele — retorna vazio
+                        return res.status(200).json({
+                            data: [],
+                            paginacao: {
+                                paginaAtual: 1,
+                                limitePorPagina: 10,
+                                totalRegistros: 0,
+                                totalPaginas: 0
+                            }
+                        });
+                    }
+                }
+
+                // Técnico só vê chamados atribuídos, em atendimento ou concluídos
+                // (nunca os não atribuídos, que ainda estão na fila da unidade)
+                if (!status) {
+                    filtro.ChamadoStatus = { in: ['ATRIBUIDO', 'EMATENDIMENTO', 'CONCLUIDO'] };
                 }
             }
             else if (usuarioLogado.usuarioTipo === 'GESTOR') {

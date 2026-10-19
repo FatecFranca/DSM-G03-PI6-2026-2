@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+//import 'package:provider/provider.dart';
+//import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../models/theme_model.dart';
-import '../../config.dart';
+//import 'package:google_fonts/google_fonts.dart';
+//import '../../models/theme_model.dart';
+//import '../../config.dart';
+import '../../services/api_client.dart';
 
 class CallActivitiesScreen extends StatefulWidget {
   final String chamadoId;
@@ -28,7 +29,7 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
   bool _isLoadingHistorico = false;
   List<dynamic> _atividades = [];
   List<dynamic> _historico = [];
-  Map<String, dynamic>? _chamadoInfo;
+  //Map<String, dynamic>? _chamadoInfo;
 
   @override
   void initState() {
@@ -45,7 +46,10 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
 
   Future<void> _fetchAtividades() async {
     try {
-      final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+
+      //final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+
+      /*
       final url = Uri.parse(
         '${AppConfig.baseUrl}/api/atividadechamado/chamado/${widget.chamadoId}',
       );
@@ -57,6 +61,9 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
           'Content-Type': 'application/json',
         },
       );
+      */
+
+      final response = await ApiClient.instance.get('/api/atividadechamado/chamado/${widget.chamadoId}');
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -81,8 +88,11 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
   // =============================================
   Future<void> _fetchHistorico() async {
     try {
+
       setState(() => _isLoadingHistorico = true);
-      final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+      //final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+
+      /*
       final url = Uri.parse(
         '${AppConfig.baseUrl}/api/historicochamado/chamado/${widget.chamadoId}?ordem=asc',
       );
@@ -94,6 +104,9 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
           'Content-Type': 'application/json',
         },
       );
+      */
+
+      final response = await ApiClient.instance.get('/api/historicochamado/chamado/${widget.chamadoId}?ordem=asc');
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -116,6 +129,7 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
   // =============================================
   // OBTER ÍCONE PARA AÇÃO DO HISTÓRICO
   // =============================================
+  /*
   IconData _getHistoricoIcon(String acao) {
     switch (acao) {
       case 'CRIACAO':
@@ -138,6 +152,7 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
         return Icons.history;
     }
   }
+  */
 
   Color _getHistoricoColor(String acao, ColorScheme cs) {
     switch (acao) {
@@ -295,7 +310,7 @@ class _CallActivitiesScreenState extends State<CallActivitiesScreen> {
     final String acao = item['HistChamadoAcao'] ?? 'ATUALIZACAO';
     final String descricao = item['HistChamadoDescricao'] ?? '';
 
-    final icon = _getHistoricoIcon(acao);
+    //final icon = _getHistoricoIcon(acao);
     final color = _getHistoricoColor(acao, cs);
 
     return Container(

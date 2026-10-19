@@ -1,7 +1,7 @@
+// lib/screens/shared/components/bottom_nav_bar.dart
 import 'dart:ui';
 
 import 'package:CDCP/models/theme_model.dart';
-import 'package:CDCP/models/user_type.dart';
 import 'package:CDCP/screens/citizen/c_calls_screen.dart';
 import 'package:CDCP/screens/citizen/c_home_screen.dart';
 import 'package:CDCP/screens/citizen/manual_screen.dart';
@@ -15,9 +15,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 class BottomNavBarScreen extends StatefulWidget {
-  final UserType? userType;
-
-  const BottomNavBarScreen({super.key, this.userType});
+  const BottomNavBarScreen({super.key});
 
   @override
   State<BottomNavBarScreen> createState() => _BottomNavBarScreenState();
@@ -26,118 +24,139 @@ class BottomNavBarScreen extends StatefulWidget {
 class _BottomNavBarScreenState extends State<BottomNavBarScreen> {
   int _selectedIndex = 0;
 
-@override
-Widget build(BuildContext context) {
-  final themeModel = Provider.of<ThemeModel>(context);
-  final userType = widget.userType ?? themeModel.userType;
-  final cs = Theme.of(context).colorScheme;
-  final user = themeModel.currentUser;
+  @override
+  Widget build(BuildContext context) {
+    final themeModel = Provider.of<ThemeModel>(context);
+    final cs = Theme.of(context).colorScheme;
+    final user = themeModel.currentUser;
 
-  // Listas locais para garantir que o index sempre bata com o conteúdo
-  final List<Widget> children;
-  final List<_NavItemConfig> navItems;
+    // Deriva o tipo do próprio UserProfile — fonte única de verdade.
+    // Se o usuário não tem `isTecnico` (ex.: deslogado), assume cidadão.
+    final bool isTecnico = user?.isTecnico ?? false;
 
-  if (userType == UserType.technician) {
-    // TÉCNICO: 3 ITENS (0, 1, 2)
-    children = [
-      THomeScreen(),
-      TCallsScreen(),
-      if (user != null) ProfileSettingsScreen(user: user) else const PlaceholderScreen(title: 'Perfil', icon: Icons.person),
-    ];
-    navItems = [
-      _NavItemConfig(0, Icons.home_outlined, Icons.home_rounded, "Início"),
-      _NavItemConfig(1, Icons.list_alt_outlined, Icons.list_alt_rounded, "Chamados"),
-      _NavItemConfig(2, Icons.person_outline_rounded, Icons.person_rounded, "Perfil"),
-    ];
-  } else {
-    // CIDADÃO: 4 ITENS (0, 1, 2, 3)
-    children = [
-      const HomeScreen(),
-      const CallsScreen(),
-      const ManualScreen(),
-      if (user != null) ProfileSettingsScreen(user: user) else const PlaceholderScreen(title: 'Perfil', icon: Icons.person),
-    ];
-    navItems = [
-      _NavItemConfig(0, Icons.grid_view_outlined, Icons.grid_view_rounded, "Início"),
-      _NavItemConfig(1, Icons.confirmation_number_outlined, Icons.confirmation_number_rounded, "Chamados"),
-      _NavItemConfig(2, Icons.help_center_outlined, Icons.help_center_rounded, "Manual"),
-      _NavItemConfig(3, Icons.person_outline_rounded, Icons.person_rounded, "Perfil"),
-    ];
+    final List<Widget> children;
+    final List<_NavItemConfig> navItems;
+
+    if (isTecnico) {
+      // TÉCNICO: 3 ITENS (0, 1, 2)
+      children = [
+        const THomeScreen(),
+        const TCallsScreen(),
+        user != null
+            ? ProfileSettingsScreen(user: user)
+            : const PlaceholderScreen(title: 'Perfil', icon: Icons.person),
+      ];
+      navItems = const [
+        _NavItemConfig(0, Icons.home_outlined, Icons.home_rounded, 'Início'),
+        _NavItemConfig(1, Icons.list_alt_outlined, Icons.list_alt_rounded, 'Chamados'),
+        _NavItemConfig(2, Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
+      ];
+    } else {
+      // CIDADÃO: 4 ITENS (0, 1, 2, 3)
+      children = [
+        const HomeScreen(),
+        const CallsScreen(),
+        const ManualScreen(),
+        user != null
+            ? ProfileSettingsScreen(user: user)
+            : const PlaceholderScreen(title: 'Perfil', icon: Icons.person),
+      ];
+      navItems = const [
+        _NavItemConfig(0, Icons.grid_view_outlined, Icons.grid_view_rounded, 'Início'),
+        _NavItemConfig(1, Icons.confirmation_number_outlined,
+            Icons.confirmation_number_rounded, 'Chamados'),
+        _NavItemConfig(2, Icons.help_center_outlined, Icons.help_center_rounded, 'Manual'),
+        _NavItemConfig(3, Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
+      ];
+    }
+
+    // Segurança: se o índice selecionado for maior que a lista (ex.: trocou de usuário), reseta
+    if (_selectedIndex >= children.length) {
+      _selectedIndex = 0;
+    }
+
+    return Scaffold(
+      extendBody: true,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: children,
+      ),
+      bottomNavigationBar: _buildModernNavBar(cs, navItems, isTecnico),
+    );
   }
 
-  // Segurança: se o índice selecionado for maior que a lista disponível (ex: trocou de user), reseta
-  if (_selectedIndex >= children.length) {
-    _selectedIndex = 0;
-  }
+  Widget _buildModernNavBar(
+    ColorScheme cs,
+    List<_NavItemConfig> navItems,
+    bool isTecnico,
+  ) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+            height: 70,
+            decoration: BoxDecoration(
+              color: cs.surface.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Ícone 0 e 1 (sempre existem)
+                      _buildNavItemFromConfig(navItems[0], cs),
+                      _buildNavItemFromConfig(navItems[1], cs),
 
-  return Scaffold(
-    extendBody: true,
-    body: IndexedStack(
-      index: _selectedIndex,
-      children: children,
-    ),
-    bottomNavigationBar: _buildModernNavBar(cs, navItems, userType),
-  );
-}
-
-Widget _buildModernNavBar(ColorScheme cs, List<_NavItemConfig> navItems, UserType userType) {
-  return Container(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Stack(
-      alignment: Alignment.bottomCenter,
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          margin: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-          height: 70,
-          decoration: BoxDecoration(
-            color: cs.surface.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 30, offset: const Offset(0, 10)),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Ícone 0 e 1 (Sempre existem)
-                    _buildNavItemFromConfig(navItems[0], cs),
-                    _buildNavItemFromConfig(navItems[1], cs),
-
-                    // O espaço central só existe para o Cidadão
-                    if (userType == UserType.citizen) ...[
-                      const SizedBox(width: 48),
-                      _buildNavItemFromConfig(navItems[2], cs),
-                      _buildNavItemFromConfig(navItems[3], cs),
-                    ] else ...[
-                      // Se for técnico, só falta o ícone 2 (Perfil)
-                      _buildNavItemFromConfig(navItems[2], cs),
+                      // Espaço central só para cidadão
+                      if (!isTecnico) ...[
+                        const SizedBox(width: 48),
+                        _buildNavItemFromConfig(navItems[2], cs),
+                        _buildNavItemFromConfig(navItems[3], cs),
+                      ] else ...[
+                        _buildNavItemFromConfig(navItems[2], cs),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        // Botão flutuante só para cidadão
-        if (userType == UserType.citizen)
-          Positioned(bottom: 45, child: _buildAddButton(cs)),
-      ],
-    ),
-  );
-}
 
-// Helper para não errar o index
-Widget _buildNavItemFromConfig(_NavItemConfig config, ColorScheme cs) {
-  return _buildNavItem(config.index, config.icon, config.activeIcon, config.label, cs);
-}
+          // Botão flutuante só para cidadão
+          if (!isTecnico)
+            Positioned(bottom: 45, child: _buildAddButton(cs)),
+        ],
+      ),
+    );
+  }
+
+  // Helper para não errar o index
+  Widget _buildNavItemFromConfig(_NavItemConfig config, ColorScheme cs) {
+    return _buildNavItem(
+      config.index,
+      config.icon,
+      config.activeIcon,
+      config.label,
+      cs,
+    );
+  }
 
   Widget _buildAddButton(ColorScheme cs) {
     return GestureDetector(
@@ -179,7 +198,13 @@ Widget _buildNavItemFromConfig(_NavItemConfig config, ColorScheme cs) {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label, ColorScheme cs) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    ColorScheme cs,
+  ) {
     final isSelected = _selectedIndex == index;
 
     return GestureDetector(
@@ -235,7 +260,7 @@ class _NavItemConfig {
   final IconData activeIcon;
   final String label;
 
-  _NavItemConfig(this.index, this.icon, this.activeIcon, this.label);
+  const _NavItemConfig(this.index, this.icon, this.activeIcon, this.label);
 }
 
 class PlaceholderScreen extends StatelessWidget {

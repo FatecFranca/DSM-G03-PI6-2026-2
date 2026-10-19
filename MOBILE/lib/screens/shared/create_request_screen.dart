@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:CDCP/config.dart';
+//import 'package:CDCP/config.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
+import '../../services/api_client.dart';
 
 class CreateSolicitacaoScreen extends StatefulWidget {
   const CreateSolicitacaoScreen({super.key});
@@ -141,9 +142,13 @@ class _CreateSolicitacaoScreenState extends State<CreateSolicitacaoScreen> {
         headers['Authorization'] = 'Bearer ${_currentUser!.token}';
       }
 
+      /*
       final response = await http
           .get(Uri.parse('${AppConfig.baseUrl}/api/unidade/listar/ativas'), headers: headers)
           .timeout(const Duration(seconds: 10));
+      */
+
+      final response = await ApiClient.instance.get('/api/unidade/listar/ativas');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -242,16 +247,23 @@ class _CreateSolicitacaoScreenState extends State<CreateSolicitacaoScreen> {
         body['SolicitacaoSolicitanteTelefone'] = _telefoneController.text.replaceAll(RegExp(r'\D'), '');
       }
 
+      /*
       final url = Uri.parse('${AppConfig.baseUrl}/api/solicitacao');
       final headers = {'Content-Type': 'application/json'};
 
       if (_isUserLoggedIn && _currentUser?.token != null) {
         headers['Authorization'] = 'Bearer ${_currentUser!.token}';
       }
-
+      
       final response = await http
           .post(url, headers: headers, body: jsonEncode(body))
           .timeout(const Duration(seconds: 15));
+      */
+
+      final response = await ApiClient.instance.post(
+        '/api/solicitacao',
+        body: body,
+      );
 
       if (response.statusCode == 201) {
         if (mounted) {

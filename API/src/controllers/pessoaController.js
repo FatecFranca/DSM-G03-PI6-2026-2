@@ -13,7 +13,7 @@ class PessoaController {
     // Login da pessoa
     async login(req, res) {
         try {
-            const { PessoaUsuario, PessoaSenha } = req.body;
+            const { PessoaUsuario, PessoaSenha, manterLogado = false } = req.body;
 
             // Validações básicas
             if (!PessoaUsuario || !PessoaUsuario.trim()) {
@@ -77,14 +77,17 @@ class PessoaController {
             await prisma.refreshToken.create({
                 data: {
                     RefreshTokenHash: refreshTokenHash,
-                    PessoaId: pessoa.PessoaId,
+                    RefreshUsuarioId: pessoa.PessoaId,
+                    RefreshUsuarioVinculo: 'PESSOA',
                     RefreshTokenExpiraEm: refreshExpiraEm,
                     RefreshTokenUserAgent: (req.headers['user-agent'] || '').slice(0, 500),
-                    RefreshTokenIp: req.ip || req.connection?.remoteAddress || null
+                    RefreshTokenIp: req.ip || req.connection?.remoteAddress || null,
+                    RefreshTokenDtCriacao: getBrasilDateTime(),
                 }
             });
 
             // Limpar tokens antigos expirados/revogados desta pessoa (higiene)
+            /*
             await prisma.refreshToken.deleteMany({
                 where: {
                     PessoaId: pessoa.PessoaId,
@@ -94,6 +97,7 @@ class PessoaController {
                     ]
                 }
             });
+            */
 
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
 
@@ -102,15 +106,18 @@ class PessoaController {
             const LogDetalhe = `Login da pessoa ${pessoa.PessoaId} | manterLogado=${manterLogado}`;
             await gravarLog(pessoa.PessoaId, LogAcao, 'PESSOA', LogDetalhe, pessoa.PessoaId);
 
+            const data = {
+                usuario: pessoaSemSenha,
+                token: accessToken,             // access token JWT (15 min)
+                refreshToken: refreshTokenBruto, // refresh token opaco (3 meses se manterLogado)
+                expiraEm: refreshExpiraEm.toISOString(),
+                tipo: 'PESSOA'
+            }
+
+            console.log('Login realizado com sucesso para pessoa:', data);
             return res.status(200).json({
                 message: 'Login realizado com sucesso',
-                data: {
-                    usuario: pessoaSemSenha,
-                    token: accessToken,             // access token JWT (15 min)
-                    refreshToken: refreshTokenBruto, // refresh token opaco (3 meses se manterLogado)
-                    expiraEm: refreshExpiraEm.toISOString(),
-                    tipo: 'PESSOA'
-                }
+                data: data
             });
 
         } catch (error) {
@@ -517,11 +524,19 @@ class PessoaController {
             const { PessoaSenha: _1, ...pessoaSemSenha } = pessoaAtualizada;
             const { PessoaSenha: _2, ...pessoaAntesSemSenha } = pessoaAlterar;
 
-            // --- Gravar log de criação
-            const LogAcao = 'ALTERARPESSOA';
-            LogDetalhe = LogDetalhe + ' Dados antes da atualização: (' + JSON.stringify(pessoaAntesSemSenha) + '), dados depois da atualização: (' + JSON.stringify(pessoaSemSenha) + ')';
-            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
-            // ---
+            if (usuarioLogado.usuarioTipo === 'GESTOR') {
+                // --- Gravar log de alteração
+                const LogAcao = 'ALTERARPESSOA';
+                LogDetalhe = LogDetalhe + ' Dados antes da atualização: (' + JSON.stringify(pessoaAntesSemSenha) + '), dados depois da atualização: (' + JSON.stringify(pessoaSemSenha) + ')';
+                await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
+                // ---
+            } else if (usuarioLogado.usuarioTipo === 'PESSOA') {
+                // --- Gravar log de alteração
+                const LogAcao = 'ALTERARPESSOA';
+                LogDetalhe = LogDetalhe + ' Dados antes da atualização: (' + JSON.stringify(pessoaAntesSemSenha) + '), dados depois da atualização: (' + JSON.stringify(pessoaSemSenha) + ')';
+                await gravarLog(pessoaSemSenha.PessoaId, LogAcao, 'GESTOR', LogDetalhe, pessoaSemSenha.PessoaId);
+                // ---
+            }
 
             return res.status(200).json({
                 message: 'Pessoa atualizada com sucesso',

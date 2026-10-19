@@ -9,11 +9,7 @@ const {
 const { gravarLog } = require('../utils/logGrava');
 
 class AuthController {
-  // ============================================================
-  // POST /api/pessoa/refresh
-  // Body: { refreshToken: "<hex>" }
-  // ============================================================
-  async refreshPessoa(req, res) {
+  async refresh(req, res) {
     try {
       const { refreshToken } = req.body;
 
@@ -126,11 +122,7 @@ class AuthController {
     }
   }
 
-  // ============================================================
-  // POST /api/pessoa/logout
-  // Body: { refreshToken: "<hex>" }
-  // ============================================================
-  async logoutPessoa(req, res) {
+  async logout(req, res) {
     try {
       const { refreshToken } = req.body;
 

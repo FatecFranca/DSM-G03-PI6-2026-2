@@ -25,6 +25,16 @@ class UserProfile {
     this.usuario,
   });
 
+  bool get isTecnico {
+    final r = role.toUpperCase().trim();
+    return r == 'TECNICO' || r == 'TÉCNICO' || r == 'TECHNICIAN';
+  }
+
+  bool get isPessoa {
+    final r = role.toUpperCase().trim();
+    return r == 'PESSOA' || r == 'CIDADAO' || r == 'CIDADÃO' || r == 'CITIZEN';
+  }
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};
     final usuario = data['usuario'] as Map<String, dynamic>? ?? {};
@@ -34,10 +44,7 @@ class UserProfile {
       name: usuario['PessoaNome'] ?? usuario['TecnicoNome'] ?? 'Usuário',
       email: usuario['PessoaEmail'] ?? usuario['TecnicoEmail'] ?? '',
       phone: usuario['PessoaTelefone'] ?? usuario['TecnicoTelefone'] ?? '',
-      cpfOrId:
-          usuario['PessoaCPF'] ??
-          usuario['TecnicoCPF'] ??
-          'Não informado',
+      cpfOrId: usuario['PessoaCPF'] ?? usuario['TecnicoCPF'] ?? 'Não informado',
       role: data['tipo'] ?? 'desconhecido',
       unitName: usuario['Unidade']?['UnidadeNome'] ?? 'Sem unidade',
       unidadeId: usuario['Unidade']?['UnidadeId'],

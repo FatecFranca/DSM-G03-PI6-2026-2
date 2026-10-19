@@ -7,6 +7,13 @@ const { getBrasilDateTime } = require('../utils/dataBrasilObter.js');
 const { validarEmail, validarTelefone } = require('../utils/validaDados.js');
 const { gravarLog } = require('../utils/logGrava.js');
 
+const {
+    gerarAccessToken,
+    gerarRefreshTokenBruto,
+    hashRefreshToken,
+    calcularExpiracaoRefresh,
+} = require('../utils/tokenUtils');
+
 
 /**
  * Gera usuário para Técnico
@@ -138,6 +145,7 @@ async function gerarUsuarioUnico(usuarioBase) {
 class TecnicoController {
 
     // Login do técnico
+    /*
     async login(req, res) {
         try {
             const { TecnicoUsuario, TecnicoSenha } = req.body;
@@ -256,6 +264,132 @@ class TecnicoController {
             return res.status(500).json({
                 error: 'Erro no login do técnico'
             });
+        }
+    }
+    */
+
+    async login(req, res) {
+        try {
+            const { TecnicoUsuario, TecnicoSenha, manterLogado = false } = req.body;
+
+            if (!TecnicoUsuario || !TecnicoUsuario.trim()) {
+                return res.status(400).json({ error: 'Usuário é obrigatório' });
+            }
+            if (!TecnicoSenha || !TecnicoSenha.trim()) {
+                return res.status(400).json({ error: 'Senha é obrigatória' });
+            }
+
+            // ✅ Bug 1 corrigido: atribui o resultado do uppercase
+            const usuarioNormalizado = TecnicoUsuario.trim().toUpperCase();
+
+            const tecnico = await prisma.tecnico.findUnique({
+                // ✅ Bug 2 corrigido: usa o valor normalizado
+                where: { TecnicoUsuario: usuarioNormalizado },
+                include: {
+                    Unidade: {
+                        select: {
+                            UnidadeId: true,
+                            UnidadeNome: true,
+                            UnidadeStatus: true,
+                        },
+                    },
+                    Departamento: {
+                        select: {
+                            DepartamentoId: true,
+                            DepartamentoNome: true,
+                            DepartamentoStatus: true,
+                        },
+                    },
+                },
+            });
+
+            if (!tecnico) {
+                return res.status(400).json({ error: 'Usuário ou senha inválidos' });
+            }
+            if (tecnico.TecnicoStatus !== 'ATIVO') {
+                return res.status(403).json({ error: 'Sua conta está inativa ou bloqueada...' });
+            }
+            if (tecnico.Unidade.UnidadeStatus !== 'ATIVA') {
+                return res.status(403).json({ error: 'A unidade está inativa ou bloqueada...' });
+            }
+            if (tecnico.Departamento.DepartamentoStatus !== 'ATIVO') {
+                return res.status(403).json({ error: 'O departamento está inativo ou bloqueado...' });
+            }
+
+            const senhaComPepper = process.env.PEPPER_SENHA_TECNICO + TecnicoSenha.trim();
+            const senhaValida = await bcrypt.compare(senhaComPepper, tecnico.TecnicoSenha);
+            if (!senhaValida) {
+                return res.status(400).json({ error: 'Usuário ou senha inválidos' });
+            }
+
+            // ============================================
+            // Access token (JWT, 15 min)
+            // ============================================
+            const accessToken = gerarAccessToken({
+                usuarioId: tecnico.TecnicoId,
+                usuarioTipo: 'TECNICO',
+                usuarioEmail: tecnico.TecnicoEmail,
+                usuarioNome: tecnico.TecnicoNome,
+                unidadeId: tecnico.UnidadeId,
+                departamentoId: tecnico.DepartamentoId,
+            });
+
+            // ============================================
+            // Refresh token (opaco, guardado em hash)
+            // ============================================
+            const refreshTokenBruto = gerarRefreshTokenBruto();
+            const refreshTokenHash = hashRefreshToken(refreshTokenBruto);
+            const refreshExpiraEm = calcularExpiracaoRefresh(manterLogado);
+
+            await prisma.refreshToken.create({
+                data: {
+                    RefreshTokenHash: refreshTokenHash,
+                    RefreshUsuarioId: tecnico.TecnicoId,
+                    RefreshUsuarioVinculo: 'TECNICO',
+                    RefreshTokenExpiraEm: refreshExpiraEm,
+                    RefreshTokenUserAgent: (req.headers['user-agent'] || '').slice(0, 500),
+                    RefreshTokenIp: req.ip || req.connection?.remoteAddress || null,
+                    RefreshTokenDtCriacao: getBrasilDateTime(),
+                },
+            });
+
+            // Higiene: limpa tokens expirados/revogados deste técnico
+            await prisma.refreshToken.deleteMany({
+                where: {
+                    RefreshUsuarioId: tecnico.TecnicoId,
+                    RefreshUsuarioVinculo: 'TECNICO',
+                    OR: [
+                        { RefreshTokenExpiraEm: { lt: new Date() } },
+                        { RefreshTokenRevogado: true },
+                    ],
+                },
+            });
+
+            const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
+
+            const LogAcao = 'LOGINTECNICO';
+            const LogDetalhe = `Login do tecnico ${tecnico.TecnicoId} | manterLogado=${manterLogado}`;
+            await gravarLog(
+                tecnico.TecnicoId,
+                LogAcao,
+                'TECNICO',
+                LogDetalhe,
+                tecnico.TecnicoId
+            );
+
+            return res.status(200).json({
+                message: 'Login realizado com sucesso',
+                data: {
+                    usuario: tecnicoSemSenha,
+                    token: accessToken,
+                    refreshToken: refreshTokenBruto,
+                    expiraEm: refreshExpiraEm.toISOString(),
+                    tipo: 'TECNICO',   // ← MESMO CAMPO QUE A PESSOA USA
+                },
+            });
+        } catch (error) {
+            console.error('Erro no login do técnico:', error);
+            return res.status(500).json({ error: 'Erro no login do técnico' });
         }
     }
 

@@ -1,13 +1,14 @@
 import 'dart:async';
-import 'package:CDCP/config.dart';
+//import 'package:CDCP/config.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import '../../models/user_model.dart';
 import '../../models/theme_model.dart';
+import '../../services/api_client.dart';
 
 class NewCallScreen extends StatefulWidget {
   const NewCallScreen({super.key});
@@ -23,13 +24,13 @@ class _NewCallScreenState extends State<NewCallScreen> {
   );
 
   // Estados dos Riscos e Bloqueios
-  bool _riskoVidaHumana = false;
-  bool _riskoVidaAnimal = false;
-  bool _bloqueioVia = false;
+  //bool _riskoVidaHumana = false;
+  //bool _riskoVidaAnimal = false;
+  //bool _bloqueioVia = false;
   bool _isSubmitting = false;
 
   // Estados para Tipo de Suporte
-  int? _selectedTipSupId;
+  //int? _selectedTipSupId;
   List<dynamic> _tiposSuporte = [];
   bool _isLoadingTipos = true;
 
@@ -49,6 +50,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
     if (_currentUser == null) return;
 
     try {
+      /*
       final url = Uri.parse(
         '${AppConfig.baseUrl}/api/tiposuporte/unidade/${_currentUser?.unidadeId}',
       );
@@ -62,6 +64,9 @@ class _NewCallScreenState extends State<NewCallScreen> {
             },
           )
           .timeout(const Duration(seconds: 10));
+      */
+
+      final response = await ApiClient.instance.get('/api/tiposuporte/unidade/${_currentUser?.unidadeId}');
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -111,6 +116,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
     };
 
     try {
+      /*
       final response = await http.post(
         Uri.parse('${AppConfig.baseUrl}/api/chamado'),
         headers: {
@@ -119,16 +125,19 @@ class _NewCallScreenState extends State<NewCallScreen> {
         },
         body: jsonEncode(body),
       );
+      */
+
+      final response = await ApiClient.instance.post(
+        '/api/chamado',
+        body: body,
+      );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         _showCustomSnackBar('Chamado registrado com sucesso!');
         if (mounted) Navigator.pop(context);
       } else {
         debugPrint("Erro na criação do chamado: ${response.body}");
-        _showCustomSnackBar(
-          'Erro na criação do chamado',
-          isError: true,
-        );
+        _showCustomSnackBar('Erro na criação do chamado', isError: true);
       }
     } catch (e) {
       _showCustomSnackBar('Erro na criação do chamado', isError: true);
@@ -173,7 +182,6 @@ class _NewCallScreenState extends State<NewCallScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   /*
                   _buildLabel('O QUE PRECISA DE REPARO?', cs),
                   const SizedBox(height: 12),
@@ -210,7 +218,6 @@ class _NewCallScreenState extends State<NewCallScreen> {
                     ),
                   ),
                   */
-
                   const SizedBox(height: 24),
                   _buildLabel('DESCRIÇÃO DO PROBLEMA', cs),
                   const SizedBox(height: 12),
@@ -260,7 +267,6 @@ class _NewCallScreenState extends State<NewCallScreen> {
                     cs,
                   ),
                   */
-
                   const SizedBox(height: 40),
                   _buildSubmitButton(cs, textScale),
                 ],
@@ -281,6 +287,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
     ),
   );
 
+  /*
   Widget _buildSwitchTile(
     String title,
     bool value,
@@ -297,6 +304,7 @@ class _NewCallScreenState extends State<NewCallScreen> {
       contentPadding: EdgeInsets.zero,
     );
   }
+  */
 
   InputDecoration _inputStyle(ColorScheme cs, String hint) => InputDecoration(
     hintText: hint,

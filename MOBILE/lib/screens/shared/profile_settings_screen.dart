@@ -1,14 +1,15 @@
 import 'dart:convert';
-import 'package:CDCP/config.dart';
+//import 'package:CDCP/config.dart';
 import 'package:CDCP/screens/shared/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
+import '../../services/api_client.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   final UserProfile user;
@@ -47,8 +48,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   Future<void> _editInfo(String label, String currentValue, String fieldName) async {
     final TextEditingController controller = TextEditingController(text: currentValue);
-    final themeModel = Provider.of<ThemeModel>(context, listen: false);
-    final token = themeModel.currentUser?.token;
+    //final themeModel = Provider.of<ThemeModel>(context, listen: false);
+    //final token = themeModel.currentUser?.token;
     final bool isTelefone = fieldName == 'PessoaTelefone' || fieldName == 'TecnicoTelefone';
     final bool isEmail = fieldName == 'PessoaEmail' || fieldName == 'TecnicoEmail';
     
@@ -107,14 +108,15 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         // ✅ Montar o body com o campo correto baseado no tipo de usuário
         final Map<String, dynamic> requestBody = { campoEnvio: newValue };
 
-        final url = Uri.parse('${AppConfig.baseUrl}/api/$endpoint/${widget.user.id}');
+        //final url = Uri.parse('${AppConfig.baseUrl}/api/$endpoint/${widget.user.id}');
 
         debugPrint('📝 Editando $label');
         debugPrint('📦 Endpoint: $endpoint');
         debugPrint('📦 Campo: $campoEnvio');
         debugPrint('📦 Valor: $newValue');
-        debugPrint('📦 URL: $url');
+        //debugPrint('📦 URL: $url');
 
+        /*
         final response = await http.put(
           url,
           headers: {
@@ -123,6 +125,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           },
           body: jsonEncode(requestBody),
         );
+        */
+
+        final response = await ApiClient.instance.put('/api/$endpoint/${widget.user.id}', body: requestBody);
 
         if (response.statusCode == 200 || response.statusCode == 204) {
           setState(() {

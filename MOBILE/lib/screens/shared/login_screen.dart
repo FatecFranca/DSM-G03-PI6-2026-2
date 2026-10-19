@@ -1,18 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ui';
 
-import 'package:CDCP/config.dart';
 import 'package:CDCP/screens/shared/components/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
 import './create_request_screen.dart';
+import '../../services/auth_service.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
@@ -140,10 +138,7 @@ class _LoginScreenState extends State<LoginScreen>
       final prefs = await SharedPreferences.getInstance();
 
       await prefs.setBool(_keySalvarCredencial, _salvarCredencial);
-      await prefs.setString(
-        _keyUltimoTipo,
-        _isCidadao ? 'cidadao' : 'tecnico',
-      );
+      await prefs.setString(_keyUltimoTipo, _isCidadao ? 'cidadao' : 'tecnico');
 
       if (_salvarCredencial) {
         // ✅ Salvar apenas a credencial do tipo atual
@@ -171,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _limparCredencialAtual() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // ✅ Remover apenas a credencial do tipo atual
       if (_isCidadao) {
         await prefs.remove(_keyCpf);
@@ -201,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() {
         _isCidadao = !_isCidadao;
         _senhaController.clear();
-        
+
         // ✅ Carregar a credencial do outro tipo (preservando a atual)
         _carregarCredencialDoTipoAtual();
       });
@@ -216,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen>
     try {
       final prefs = await SharedPreferences.getInstance();
       final salvar = prefs.getBool(_keySalvarCredencial) ?? false;
-      
+
       if (salvar) {
         if (_isCidadao) {
           final cpfSalvo = prefs.getString(_keyCpf) ?? '';
@@ -245,77 +240,52 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _login() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
+
     try {
-      final Map<String, dynamic> body;
-      final Uri url;
+      final UserProfile user;
+
       if (_isCidadao) {
         final cpf = _cpfController.text.replaceAll(RegExp(r'\D'), '');
         final senha = _senhaController.text.trim();
-        if (cpf.isEmpty || senha.isEmpty)
+        if (cpf.isEmpty || senha.isEmpty) {
           throw Exception('CPF e senha são obrigatórios!');
-        body = {'PessoaUsuario': cpf, 'PessoaSenha': senha};
-        url = Uri.parse('${AppConfig.baseUrl}/api/pessoa/login');
+        }
+
+        user = await AuthService.instance.login(
+          cpf: cpf,
+          senha: senha,
+          manterLogado: _salvarCredencial,
+        );
       } else {
         final usuario = _usuarioController.text.trim().toUpperCase();
         final senha = _senhaController.text.trim();
-        if (usuario.isEmpty || senha.isEmpty)
+        if (usuario.isEmpty || senha.isEmpty) {
           throw Exception('Usuário e senha são obrigatórios!');
-        body = {'TecnicoUsuario': usuario, 'TecnicoSenha': senha};
-        url = Uri.parse('${AppConfig.baseUrl}/api/tecnico/login');
+        }
+
+        // ✅ Agora chama o método do AuthService
+        user = await AuthService.instance.loginTecnico(
+          usuario: usuario,
+          senha: senha,
+          manterLogado: _salvarCredencial,
+        );
       }
 
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 15));
+      await _salvarCredenciais();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        var user = UserProfile.fromJson(data);
-        user = UserProfile(
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          cpfOrId: user.cpfOrId,
-          role: _isCidadao ? 'citizen' : 'technician',
-          unitName: user.unitName,
-          unidadeId: user.unidadeId,
-          token: user.token,
-          usuario: user.usuario,
-        );
-
-        // ✅ Salvar credenciais após login bem-sucedido
-        await _salvarCredenciais();
-
-        if (mounted) {
-          final themeModel = Provider.of<ThemeModel>(context, listen: false);
-          themeModel.setCurrentUser(user);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const BottomNavBarScreen()),
-          );
-        }
-      } else {
-        final errorMsg =
-            jsonDecode(response.body)['error'] ?? 'Erro ao realizar Login';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMsg),
-            backgroundColor: const Color.fromARGB(255, 211, 55, 55),
-            behavior: SnackBarBehavior.floating,
-          ),
+      if (mounted) {
+        final themeModel = Provider.of<ThemeModel>(context, listen: false);
+        themeModel.setCurrentUser(user);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const BottomNavBarScreen()),
         );
       }
     } catch (e) {
-      print(e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao realizar login'),
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
             backgroundColor: const Color.fromARGB(255, 211, 55, 55),
             behavior: SnackBarBehavior.floating,
           ),
@@ -485,8 +455,8 @@ class _LoginScreenState extends State<LoginScreen>
   // =============================================
   Widget _buildSalvarCredencialCheckbox(double fontSize, ColorScheme cs) {
     // ✅ Verificar se há credencial salva para o tipo atual
-    final temCredencialSalva = _isCidadao 
-        ? _cpfController.text.isNotEmpty 
+    final temCredencialSalva = _isCidadao
+        ? _cpfController.text.isNotEmpty
         : _usuarioController.text.isNotEmpty;
 
     return Row(
@@ -534,14 +504,12 @@ class _LoginScreenState extends State<LoginScreen>
                 context: context,
                 builder: (context) => AlertDialog(
                   title: Text(
-                    _isCidadao 
-                      ? 'Limpar CPF Salvo' 
-                      : 'Limpar Usuário Salvo',
+                    _isCidadao ? 'Limpar CPF Salvo' : 'Limpar Usuário Salvo',
                   ),
                   content: Text(
-                    _isCidadao 
-                      ? 'Deseja remover o CPF salvo?'
-                      : 'Deseja remover o usuário salvo?',
+                    _isCidadao
+                        ? 'Deseja remover o CPF salvo?'
+                        : 'Deseja remover o usuário salvo?',
                   ),
                   actions: [
                     TextButton(
@@ -555,9 +523,9 @@ class _LoginScreenState extends State<LoginScreen>
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              _isCidadao 
-                                ? 'CPF removido com sucesso' 
-                                : 'Usuário removido com sucesso',
+                              _isCidadao
+                                  ? 'CPF removido com sucesso'
+                                  : 'Usuário removido com sucesso',
                             ),
                             backgroundColor: Colors.green,
                             behavior: SnackBarBehavior.floating,

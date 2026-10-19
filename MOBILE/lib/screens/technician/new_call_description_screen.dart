@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
-import '../../config.dart';
-import '../../models/theme_model.dart';
+//import 'package:http/http.dart' as http;
+//import 'package:provider/provider.dart';
+//import '../../config.dart';
+//import '../../models/theme_model.dart';
+import '../../services/api_client.dart';
 
 class NewCallDescriptionScreen extends StatefulWidget {
   final String chamadoId;
@@ -12,30 +13,33 @@ class NewCallDescriptionScreen extends StatefulWidget {
   final int chamadoN2;
 
   const NewCallDescriptionScreen({
-    super.key, 
-    required this.chamadoId, 
-    required this.chamadoN1, 
-    required this.chamadoN2
+    super.key,
+    required this.chamadoId,
+    required this.chamadoN1,
+    required this.chamadoN2,
   });
 
   @override
-  State<NewCallDescriptionScreen> createState() => _NewCallDescriptionScreenState();
+  State<NewCallDescriptionScreen> createState() =>
+      _NewCallDescriptionScreenState();
 }
 
 class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
   final TextEditingController _controller = TextEditingController();
   bool _isSending = false;
-  
+
   String _selectedVisibilidade = 'GESTEC';
 
+  /*
   final Map<String, String> _visibilidadeOptions = {
     'GESTEC': 'Apenas Técnico/Gestor',
     'TODOS': 'Cidadão pode ver',
   };
+  */
 
   Future<void> _submitAtividade() async {
     debugPrint('🔘 Botão Salvar clicado!');
-    
+
     final desc = _controller.text.trim();
     if (desc.isEmpty) {
       _showError('Descreva a atividade primeiro.');
@@ -45,32 +49,50 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
     setState(() => _isSending = true);
 
     try {
-      final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
-      
+      //final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+
+      /*
       String baseUrl = AppConfig.baseUrl;
+      
       if (baseUrl.endsWith('/')) {
         baseUrl = baseUrl.substring(0, baseUrl.length - 1);
       }
-
-      final url = Uri.parse('$baseUrl/api/atividadechamado/chamado/${widget.chamadoId}');
-
-      debugPrint('🚀 Enviando para: $url');
-      debugPrint('📝 Descrição: $desc');
-      debugPrint('👁️ Visibilidade: $_selectedVisibilidade');
+      
+      final url = Uri.parse(
+        '$baseUrl/api/atividadechamado/chamado/${widget.chamadoId}',
+      );
+    
+      //debugPrint('🚀 Enviando para: $url');
+      //debugPrint('📝 Descrição: $desc');
+      //debugPrint('👁️ Visibilidade: $_selectedVisibilidade');
 
       final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${user?.token}',
-        },
-        body: jsonEncode({
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${user?.token}',
+            },
+            body: jsonEncode({
+              "AtividadeDescricao": desc,
+              "AtividadeUsuarioVer": _selectedVisibilidade,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+      */
+
+      final response = await ApiClient.instance.post(
+        '/api/atividadechamado/chamado/${widget.chamadoId}',
+        body: {
           "AtividadeDescricao": desc,
           "AtividadeUsuarioVer": _selectedVisibilidade,
-        }),
-      ).timeout(const Duration(seconds: 10));
+        },
+      );
 
-      debugPrint('📡 Resposta da API (${response.statusCode}): ${response.body}');
+      /*
+      debugPrint(
+        '📡 Resposta da API (${response.statusCode}): ${response.body}',
+      );
+      */
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         if (mounted) {
@@ -80,7 +102,10 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
         String errorMessage = 'Erro ao salvar atividade';
         try {
           final errorData = jsonDecode(response.body);
-          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Erro ${response.statusCode}';
+          errorMessage =
+              errorData['error'] ??
+              errorData['message'] ??
+              'Erro ${response.statusCode}';
         } catch (e) {
           errorMessage = 'Erro ${response.statusCode}';
         }
@@ -107,7 +132,7 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -138,7 +163,8 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
                   maxLines: 6,
                   autofocus: true,
                   decoration: InputDecoration(
-                    hintText: 'Ex: Realizada verificação do problema relatado...',
+                    hintText:
+                        'Ex: Realizada verificação do problema relatado...',
                     alignLabelWithHint: true,
                     labelText: 'Descrição da Atividade',
                     border: OutlineInputBorder(
@@ -149,12 +175,14 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Campo de Visibilidade
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+                    border: Border.all(
+                      color: cs.outlineVariant.withOpacity(0.3),
+                    ),
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Column(
@@ -178,7 +206,10 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
                         ),
                         subtitle: Text(
                           'O cidadão não visualizará esta atividade',
-                          style: GoogleFonts.inter(fontSize: 12, color: cs.onSurfaceVariant),
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                         value: 'GESTEC',
                         groupValue: _selectedVisibilidade,
@@ -187,7 +218,9 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
                             _selectedVisibilidade = value!;
                           });
                         },
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                        ),
                       ),
                       RadioListTile<String>(
                         title: Text(
@@ -196,7 +229,10 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
                         ),
                         subtitle: Text(
                           'O cidadão poderá visualizar esta atividade',
-                          style: GoogleFonts.inter(fontSize: 12, color: cs.onSurfaceVariant),
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                         value: 'TODOS',
                         groupValue: _selectedVisibilidade,
@@ -205,26 +241,38 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
                             _selectedVisibilidade = value!;
                           });
                         },
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Botão Salvar
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton.icon(
                     onPressed: _isSending ? null : _submitAtividade,
-                    icon: _isSending 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.save_rounded),
+                    icon: _isSending
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.save_rounded),
                     label: Text(
                       _isSending ? 'SALVANDO...' : 'SALVAR ATIVIDADE',
-                      style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.1,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: cs.primary,
@@ -236,7 +284,7 @@ class _NewCallDescriptionScreenState extends State<NewCallDescriptionScreen> {
                     ),
                   ),
                 ),
-                
+
                 // ✅ Espaço extra no final para melhor rolagem
                 const SizedBox(height: 20),
               ],

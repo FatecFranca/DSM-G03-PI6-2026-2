@@ -311,14 +311,23 @@ class EquipeController {
                     // Gestor só vê equipes da sua unidade
                     filtro.UnidadeId = gestorLogado.UnidadeId;
                 }
-            }
-
-            // Aplicar filtros da query
-            if (unidadeId) {
-                // Se for admin ou se o filtro for compatível com a permissão
-                if (usuarioLogado?.usuarioTipo === 'ADMINISTRADOR') {
+            } else if (usuarioLogado?.usuarioTipo === 'TECNICO') {
+                // Técnico vê apenas equipes em que está vinculado ativamente
+                filtro.TecnicoEquipe = {
+                    some: {
+                        TecnicoId: usuarioLogado.usuarioId,
+                        TecEquStatus: 'ATIVO',
+                    },
+                };
+            } else if (usuarioLogado?.usuarioTipo === 'ADMINISTRADOR') {
+                // Aplicar filtros da query
+                if (unidadeId) {
                     filtro.UnidadeId = parseInt(unidadeId);
                 }
+            } else {
+                return res.status(403).json({
+                    error: 'Você não tem permissão para acessar essa rota'
+                });
             }
 
             if (status) {
@@ -980,7 +989,7 @@ class EquipeController {
             await prisma.tecnicoEquipe.delete({
                 where: { TecEquId: vinculoId }
             });
-            
+
             // --- Gravar log de remoção de técnico à equipe
             const LogAcao = 'EXCLUIRVINCULOTECNICOEQUIPE';
             const LogDetalhe = 'Foi excluído o vinculo do técnico de ID (' + vinculo.TecnicoId + ' | ' + vinculo.Tecnico.TecnicoUsuario + ') da equipe de ID (' + vinculo.EquipeId + ' | ' + vinculo.Equipe.EquipeNome + '), pelo(a) gestor(a) de ID (' + gestorLogado.GestorId + ' | ' + gestorLogado.GestorUsuario + ')';

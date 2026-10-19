@@ -1,14 +1,15 @@
 import 'dart:convert';
-import 'package:CDCP/config.dart';
+//import 'package:CDCP/config.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 //import 'package:intl/intl.dart';
 import '../../models/call_model.dart';
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
 import './call_activities_screen.dart';
+import '../../services/api_client.dart';
 
 class CallsScreen extends StatefulWidget {
   const CallsScreen({super.key});
@@ -140,7 +141,7 @@ class CallsScreenState extends State<CallsScreen> {
     setState(() {
       _filteredCalls = _calls.where((call) {
         final selected = _selectedStatus.replaceAll(" ", "").toUpperCase();
-        final currentCallStatus = (call.status ?? "")
+        final currentCallStatus = (call.status)
             .toString()
             .replaceAll(" ", "")
             .toUpperCase();
@@ -157,7 +158,7 @@ class CallsScreenState extends State<CallsScreen> {
         final titulo = (call.titulo ?? "").toString().toLowerCase();
         final matchesTitulo = titulo.contains(query);
 
-        final desc = (call.descricaoInicial ?? "").toString().toLowerCase();
+        final desc = (call.descricaoInicial).toString().toLowerCase();
         final matchesDesc = desc.contains(query);
 
         final idConcatenado = "${call.n1}-${call.n2}".toLowerCase();
@@ -166,11 +167,8 @@ class CallsScreenState extends State<CallsScreen> {
         final matchesN1 = call.n1.toString().contains(query);
         final matchesN2 = call.n2.toString().contains(query);
 
-        final matchesSearch = matchesTitulo || 
-                              matchesDesc || 
-                              matchesId || 
-                              matchesN1 || 
-                              matchesN2;
+        final matchesSearch =
+            matchesTitulo || matchesDesc || matchesId || matchesN1 || matchesN2;
 
         return matchesStatus && matchesSearch;
       }).toList();
@@ -187,12 +185,16 @@ class CallsScreenState extends State<CallsScreen> {
 
       if (_currentUser == null) return;
 
+      /*
       final uri = Uri.parse('${AppConfig.baseUrl}/api/chamado');
 
       final response = await http.get(
         uri,
         headers: {'Authorization': 'Bearer ${_currentUser!.token!}'},
       );
+      */
+
+      final response = await ApiClient.instance.get('/api/chamado');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -273,6 +275,7 @@ class CallsScreenState extends State<CallsScreen> {
     setState(() => _isLoading = true);
 
     try {
+      /*
       final url = Uri.parse('${AppConfig.baseUrl}/api/chamado/$callId/status');
 
       final response = await http
@@ -285,6 +288,12 @@ class CallsScreenState extends State<CallsScreen> {
             body: jsonEncode({'ChamadoStatus': 'CANCELADO'}),
           )
           .timeout(const Duration(seconds: 10));
+      */
+
+      final response = await ApiClient.instance.patch(
+        '/api/chamado/$callId/status',
+        body: {'ChamadoStatus': 'CANCELADO'},
+      );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         if (!mounted) return;
@@ -298,7 +307,8 @@ class CallsScreenState extends State<CallsScreen> {
         await loadCalls();
       } else {
         final data = jsonDecode(response.body);
-        final msg = data['error'] ?? data['message'] ?? 'Erro ${response.statusCode}';
+        final msg =
+            data['error'] ?? data['message'] ?? 'Erro ${response.statusCode}';
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -393,7 +403,8 @@ class CallsScreenState extends State<CallsScreen> {
                           final int? days = int.tryParse(value);
                           if (days != null && days < 0) {
                             diasController.text = '0';
-                            diasController.selection = TextSelection.fromPosition(
+                            diasController
+                                .selection = TextSelection.fromPosition(
                               TextPosition(offset: diasController.text.length),
                             );
                           }
@@ -484,6 +495,7 @@ class CallsScreenState extends State<CallsScreen> {
     setState(() => _isLoading = true);
 
     try {
+      /*
       final url = Uri.parse('${AppConfig.baseUrl}/api/chamado/${call.id}');
 
       final response = await http
@@ -501,6 +513,17 @@ class CallsScreenState extends State<CallsScreen> {
             }),
           )
           .timeout(const Duration(seconds: 10));
+      */
+
+      final response = await ApiClient.instance.put(
+        '/api/chamado/${call.id}',
+        body: {
+          'ChamadoDescricaoInicial': descricao,
+          'ChamadoDiasComProblema': dias,
+          'PessoaId': _currentUser!.id,
+          'UnidadeId': _currentUser!.unidadeId,
+        },
+      );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         if (!mounted) return;
@@ -525,6 +548,7 @@ class CallsScreenState extends State<CallsScreen> {
     }
   }
 
+  /*
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -539,6 +563,7 @@ class CallsScreenState extends State<CallsScreen> {
       ),
     );
   }
+  */
 
   @override
   Widget build(BuildContext context) {
@@ -569,10 +594,8 @@ class CallsScreenState extends State<CallsScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
                       itemCount: _filteredCalls.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => _buildCallCard(
-                        context,
-                        _filteredCalls[index],
-                      ),
+                      itemBuilder: (context, index) =>
+                          _buildCallCard(context, _filteredCalls[index]),
                     ),
             ),
           ),
@@ -606,7 +629,8 @@ class CallsScreenState extends State<CallsScreen> {
     final statusLightColor = _getStatusLightColor(call.status);
     final statusBorderColor = _getStatusBorderColor(call.status);
     final statusUpper = call.status.toUpperCase();
-    final isEditable = statusUpper == 'PENDENTE' || statusUpper == 'FALTAINFORMACAO';
+    final isEditable =
+        statusUpper == 'PENDENTE' || statusUpper == 'FALTAINFORMACAO';
 
     return GestureDetector(
       onTap: () => _navegarParaAtividades(call),
@@ -668,7 +692,11 @@ class CallsScreenState extends State<CallsScreen> {
                             ],
                           ),
                           // ✅ Status Chip com a cor do status
-                          _buildStatusChip(call.status, statusColor, statusLightColor),
+                          _buildStatusChip(
+                            call.status,
+                            statusColor,
+                            statusLightColor,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -684,18 +712,28 @@ class CallsScreenState extends State<CallsScreen> {
                         ),
                       // ✅ Descrição
                       Text(
-                        call.descricaoInicial ?? '',
+                        call.descricaoInicial,
                         style: GoogleFonts.inter(
-                          fontSize: call.titulo != null && call.titulo!.isNotEmpty ? 12 : 15,
-                          fontWeight: call.titulo != null && call.titulo!.isNotEmpty ? FontWeight.w400 : FontWeight.w600,
-                          color: call.titulo != null && call.titulo!.isNotEmpty ? Colors.grey[600] : cs.onSurface,
+                          fontSize:
+                              call.titulo != null && call.titulo!.isNotEmpty
+                              ? 12
+                              : 15,
+                          fontWeight:
+                              call.titulo != null && call.titulo!.isNotEmpty
+                              ? FontWeight.w400
+                              : FontWeight.w600,
+                          color: call.titulo != null && call.titulo!.isNotEmpty
+                              ? Colors.grey[600]
+                              : cs.onSurface,
                         ),
-                        maxLines: call.titulo != null && call.titulo!.isNotEmpty ? 2 : 3,
+                        maxLines: call.titulo != null && call.titulo!.isNotEmpty
+                            ? 2
+                            : 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                       // ✅ Mensagem de Falta Informação
-                      if (call.status == 'FALTAINFORMACAO' && 
-                          call.descricaoFormatada != null && 
+                      if (call.status == 'FALTAINFORMACAO' &&
+                          call.descricaoFormatada != null &&
                           call.descricaoFormatada!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Container(
@@ -703,7 +741,11 @@ class CallsScreenState extends State<CallsScreen> {
                           decoration: BoxDecoration(
                             color: _getStatusLightColor('FALTAINFORMACAO'),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: _getStatusColor('FALTAINFORMACAO').withOpacity(0.3)),
+                            border: Border.all(
+                              color: _getStatusColor(
+                                'FALTAINFORMACAO',
+                              ).withOpacity(0.3),
+                            ),
                           ),
                           child: Text(
                             'Falta informação no chamado: ${call.descricaoFormatada}',
@@ -716,8 +758,8 @@ class CallsScreenState extends State<CallsScreen> {
                         ),
                       ],
                       // ✅ Mensagem de Recusa
-                      if (call.status == 'RECUSADO' && 
-                          call.descricaoFormatada != null && 
+                      if (call.status == 'RECUSADO' &&
+                          call.descricaoFormatada != null &&
                           call.descricaoFormatada!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Container(
@@ -725,7 +767,11 @@ class CallsScreenState extends State<CallsScreen> {
                           decoration: BoxDecoration(
                             color: _getStatusLightColor('RECUSADO'),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: _getStatusColor('RECUSADO').withOpacity(0.3)),
+                            border: Border.all(
+                              color: _getStatusColor(
+                                'RECUSADO',
+                              ).withOpacity(0.3),
+                            ),
                           ),
                           child: Text(
                             'Chamado recusado: ${call.descricaoFormatada}',
@@ -755,7 +801,8 @@ class CallsScreenState extends State<CallsScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => _cancelCall(call.id, call.n1, call.n2),
+                                onTap: () =>
+                                    _cancelCall(call.id, call.n1, call.n2),
                                 child: _buildBtn(
                                   'Cancelar',
                                   Icons.close,

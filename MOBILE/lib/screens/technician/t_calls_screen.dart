@@ -2,12 +2,13 @@ import 'dart:async';
 import 'package:CDCP/screens/technician/call_activities_screen.dart';
 import 'package:CDCP/screens/technician/new_call_description_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+//import 'package:provider/provider.dart';
+//import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
-import '../../models/theme_model.dart';
-import '../../config.dart';
+//import '../../models/theme_model.dart';
+//import '../../config.dart';
+import '../../services/api_client.dart';
 
 class TCallsScreen extends StatefulWidget {
   const TCallsScreen({super.key});
@@ -72,8 +73,9 @@ class _TCallsScreenState extends State<TCallsScreen> {
   Future<void> _carregarEquipes() async {
     try {
       setState(() => _isLoadingEquipes = true);
-      final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
+      //final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
 
+      /*
       final response = await http.get(
         Uri.parse('${AppConfig.baseUrl}/api/equipe'),
         headers: {
@@ -81,6 +83,9 @@ class _TCallsScreenState extends State<TCallsScreen> {
           'Content-Type': 'application/json',
         },
       );
+      */
+
+      final response = await ApiClient.instance.get('/api/equipe');
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -104,20 +109,9 @@ class _TCallsScreenState extends State<TCallsScreen> {
   Future<void> _fetchChamadosTecnico({bool isAutoRefresh = false}) async {
     if (!mounted) return;
     try {
-      final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
-      final url = Uri.parse('${AppConfig.baseUrl}/api/chamado');
-
       if (!isAutoRefresh) setState(() => isLoading = true);
 
-      final response = await http
-          .get(
-            url,
-            headers: {
-              'Authorization': 'Bearer ${user?.token}',
-              'Content-Type': 'application/json',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await ApiClient.instance.get('/api/chamado');
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -126,22 +120,14 @@ class _TCallsScreenState extends State<TCallsScreen> {
             : (decoded['data'] ?? []);
 
         if (mounted) {
-          // ✅ Buscar a equipe do técnico logado
-          final equipeDoTecnico = await _getEquipeDoTecnico(user?.id);
-
           setState(() {
+            // Backend já filtrou por equipes do técnico e status permitidos.
+            // O app só faz um passe de segurança, caso o backend mude.
             chamados = todos.where((c) {
               final status = c['ChamadoStatus']?.toString().toUpperCase();
-              final equipeId = c['EquipeId']?.toString();
-
-              // ✅ Filtrar apenas chamados da equipe do técnico
-              final isDaEquipe =
-                  equipeDoTecnico == null || equipeId == equipeDoTecnico;
-
-              return (status == 'ATRIBUIDO' ||
-                      status == 'EMATENDIMENTO' ||
-                      status == 'CONCLUIDO') &&
-                  isDaEquipe;
+              return status == 'ATRIBUIDO' ||
+                  status == 'EMATENDIMENTO' ||
+                  status == 'CONCLUIDO';
             }).toList();
             _applyFilters();
             isLoading = false;
@@ -154,9 +140,11 @@ class _TCallsScreenState extends State<TCallsScreen> {
     }
   }
 
+  /*
   Future<String?> _getEquipeDoTecnico(String? tecnicoId) async {
     if (tecnicoId == null) return null;
     try {
+      /*
       final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
       final response = await http.get(
         Uri.parse('${AppConfig.baseUrl}/api/tecnico/$tecnicoId/equipe'),
@@ -164,6 +152,11 @@ class _TCallsScreenState extends State<TCallsScreen> {
           'Authorization': 'Bearer ${user?.token}',
           'Content-Type': 'application/json',
         },
+      );
+      */
+
+      final response = await ApiClient.instance.get(
+        '/api/tecnico/$tecnicoId/equipe',
       );
 
       if (response.statusCode == 200) {
@@ -176,16 +169,17 @@ class _TCallsScreenState extends State<TCallsScreen> {
       return null;
     }
   }
+  */
 
   void _applyFilters() {
     setState(() {
       filteredChamados = chamados.where((chamado) {
-        // Filtro por Status
+        // Filtro por status
         final status = chamado['ChamadoStatus']?.toString().toUpperCase() ?? '';
         final matchesStatus =
             _selectedStatus == "TODOS" || status == _selectedStatus;
 
-        // Filtro por busca (ID N1-N2, Título, Descrição)
+        // Filtro por busca
         final n1 = chamado['ChamadoN1']?.toString() ?? '';
         final n2 = chamado['ChamadoN2']?.toString() ?? '';
         final idCompleto = "$n1-$n2";
@@ -204,8 +198,12 @@ class _TCallsScreenState extends State<TCallsScreen> {
             titulo.contains(query) ||
             descricao.contains(query);
 
-        // ✅ Remover o filtro de equipe daqui - apenas agrupar depois
-        return matchesStatus && matchesSearch;
+        // ✅ Filtro por equipe — o que estava faltando
+        final equipeId = chamado['EquipeId']?.toString();
+        final matchesEquipe =
+            _selectedEquipeId == null || equipeId == _selectedEquipeId;
+
+        return matchesStatus && matchesSearch && matchesEquipe;
       }).toList();
     });
   }
@@ -227,6 +225,7 @@ class _TCallsScreenState extends State<TCallsScreen> {
 
   Future<void> _patchStatusConcluido(String id) async {
     try {
+      /*
       final user = Provider.of<ThemeModel>(context, listen: false).currentUser;
       final url = Uri.parse('${AppConfig.baseUrl}/api/chamado/$id/status');
 
@@ -237,6 +236,12 @@ class _TCallsScreenState extends State<TCallsScreen> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({"ChamadoStatus": "CONCLUIDO"}),
+      );
+      */
+
+      final response = await ApiClient.instance.patch(
+        '/api/chamado/$id/status',
+        body: {"ChamadoStatus": "CONCLUIDO"},
       );
 
       if (response.statusCode == 200) {

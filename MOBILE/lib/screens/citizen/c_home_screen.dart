@@ -1,10 +1,11 @@
 import 'package:CDCP/screens/citizen/new_call_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../models/theme_model.dart';
-import '../../config.dart';
+//import '../../config.dart';
+import '../../services/api_client.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
+      /*
       final url = Uri.parse('${AppConfig.baseUrl}/api/chamado');
 
       final response = await http.get(
@@ -54,6 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
           'Authorization': 'Bearer ${user.token}',
         },
       ).timeout(const Duration(seconds: 10));
+      */
+
+      final response = await ApiClient.instance.get('/api/chamado');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> decodedData = jsonDecode(response.body);
@@ -290,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /*
   Widget _buildWideCard(BuildContext context, String title, int value, Color color, IconData icon) {
     final theme = Theme.of(context);
     return Container(
@@ -329,6 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+  */
 
   Widget _buildActionButton(BuildContext context, String label, IconData icon, VoidCallback onTap) {
     final theme = Theme.of(context);

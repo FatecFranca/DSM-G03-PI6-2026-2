@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+//import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../models/theme_model.dart';
-import '../../config.dart';
+//import '../../config.dart';
+import '../../services/api_client.dart';
 
 class THomeScreen extends StatefulWidget {
   const THomeScreen({super.key});
@@ -34,6 +35,7 @@ class _THomeScreenState extends State<THomeScreen> {
       if (user == null || user.token == null) return;
 
       // Monta a URL com o filtro de período
+      /*
       final url = Uri.parse(
         '${AppConfig.baseUrl}/api/chamado/estatisticas?periodo=$selectedPeriod',
       );
@@ -47,6 +49,11 @@ class _THomeScreenState extends State<THomeScreen> {
             },
           )
           .timeout(const Duration(seconds: 10));
+      */
+
+      final response = await ApiClient.instance.get(
+        '/api/chamado/estatisticas?periodo=$selectedPeriod',
+      );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
