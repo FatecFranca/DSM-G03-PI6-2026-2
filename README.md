@@ -48,11 +48,11 @@ O gerenciamento Web apresenta as seguintes telas e funcionalidades:
 * **Técnico**: Pode incluir atividades nos chamados ao qual ele esteja envolvido pelas suas equipes, também podendo conclui-los. Seu acesso é somente ao aplicativo, em uma área exclusiva para técnicos, não podendo criar chamados com as mesmas credenciais.
 * **Pessoa/Cidadão**: Pode fazer a criação de chamados, além de acompanhar o desenvolvimento deles. Seu acesso é somente ao aplicativo, em uma área exclusiva para os cidadãos.
 
-### Fluxo dos chamados:
+### Fluxo da Abertura de chamados:
 <img src="/PRINTS/fluxo-chamados.jpg">
 
-### Diagrama Entidade Relacionamento:
-<img src="/PRINTS/der-bd.jpg">
+### Fluxo do Processo de Mineração de Dados:
+<img src="/PRINTS/fluxo-mineracao-dados.jpg">
 
 ### Modelo Lógico - BD:
 <img src="/PRINTS/modelo-logico.png">
@@ -60,11 +60,7 @@ O gerenciamento Web apresenta as seguintes telas e funcionalidades:
 ### Diagrama Caso de Uso:
 <img src="/PRINTS/diagrama-caso-uso.png">
 
-### 📕 [Levantamento de Requisitos](./DOCS/CDCP-Levantamento-Requisitos.pdf?raw=true)
-
-### 📕 [Documentação Treinamento Modelo IA (CART)](./DOCS/Documentacao-Processamento-Completo.pdf?raw=true)
-
-### 📕 [Justificativa Mensageria e Mineração de Dados](./DOCS/Justificativa-Mensageria-MD.pdf?raw=true)
+### 📕 [Documentação da Aplicação](./DOCS/CDCP-Documentacao-Final.pdf?raw=true)
 
 ### 🎬 [Elevator Pitch](https://youtu.be/JnMI5b-C7w4)
 
@@ -148,8 +144,9 @@ O gerenciamento Web apresenta as seguintes telas e funcionalidades:
 * Node.js - Framework para o desenvolvimento da API (js)
 * PostGreSQL - Banco de dados
 * Prisma ORM - Interface com o banco de dados
+* SPACY - Processamento de Linguagem Natural (python)
 * CART - Modelo de IA para classificação (python)
-* DEFINIR - Processamento de Linguagem Natural (python)
+* KMEANS - Modelo de IA para mineração de dados (python)
 * RabbitMQ - Serviço de mensageria
 
 **Arquitetura:**
@@ -177,9 +174,9 @@ O gerenciamento Web apresenta as seguintes telas e funcionalidades:
 
 | Mensageria | Inteligência <br>(IA / PLN / Mineração de Dados) |
 | :---: | :---: |
-| Utilizada para chamadas da API a execuções dos modelos de PLN, IA e Mineração de Dados | (DEFINIR - PLN) <br>Para mapeamento de informações base do chamado conforme descrição usadas na classificação de urgência |
+| Utilizada para chamadas da API a execuções dos modelos de PLN, IA e Mineração de Dados | (PLN - SPACY) <br>Para mapeamento de informações base do chamado conforme descrição usadas na classificação de urgência |
 | RabbitMQ | (IA - CART) <br>Para classificação de urgência |
-| Hospedado na mesma VM onde se hospedará a API, WEB e modelos de classificação e mineração | (Mineração de dados) <br>Agrupamento/Clustering |
+| Hospedado na mesma VM onde se hospedará a API, WEB e modelos de classificação e mineração | (Mineração de dados - KMeans) <br>Agrupamento/Clustering |
 
 <br>
 
@@ -195,42 +192,70 @@ DSM-G03-PI6-2026-2/
 │   │   ├── controllers/
 │   |   │   ├── adminController.js
 │   |   │   ├── atividadeChamadoController.js
+│   |   │   ├── atividadeSolicitacaoController.js
+│   |   │   ├── authController.js
 │   |   │   ├── chamadoController.js
 │   |   │   ├── departamentoController.js
 │   |   │   ├── equipeController.js
 │   |   │   ├── gestorController.js
+│   |   │   ├── historicoChamadoController.js
+│   |   │   ├── mineracaoController.js
 │   |   │   ├── pessoaController.js
 │   |   │   ├── solicitacaoController.js
 │   |   │   ├── tecnicoController.js
 │   |   │   ├── tipoSuporteController.js
 │   |   │   └── unidadeController.js
 │   |   ├── ia/
+│   |   │   ├── classificadorUrgencia.py
+│   |   │   ├── gerar_modelo.py
+│   |   │   ├── scaler.pkl
 │   |   │   └── modelo_cart.pkl
+│   |   ├── md/
+│   |   │   ├── .venv/
+│   |   │   ├── requirements.txt
+│   |   │   └── mineracao.py
 │   |   ├── middlewares/
 │   |   │   └── authMiddleware.js
 │   |   ├── routes/
 │   |   │   ├── adminRouter.js
 │   |   │   ├── atividadeChamadoRouter.js
+│   |   │   ├── atividadeSolicitacaoRouter.js
+│   |   │   ├── authRouter.js
 │   |   │   ├── chamadoRouter.js
 │   |   │   ├── departamentoRouter.js
 │   |   │   ├── equipeRouter.js
 │   |   │   ├── gestorRouter.js
+│   |   │   ├── historicoChamadoRouter.js
+│   |   │   ├── mineracaoRouter.js
 │   |   │   ├── pessoaRouter.js
 │   |   │   ├── solicitacaoRouter.js
 │   |   │   ├── tecnicoRouter.js
 │   |   │   ├── tipoSuporteRouter.js
 │   |   │   └── unidadeRouter.js
 │   |   ├── services/
+│   |   │   ├── chamadoClassificacaoService.js
 │   |   │   ├── classificador.js
-│   |   │   └── classificadorPool.js
+│   |   │   ├── classificadorPool.js
+│   |   │   ├── classificadorRabbitMQ.js
+│   |   │   ├── classificadorService.js
+│   |   │   └── mineracaoRabbitMQ.js
 │   |   ├── utils/
-│   |   │   ├── dataBrasilObter.js.js
-│   |   │   └── logGrava.js.js
+│   |   │   ├── dataBrasilObter.js
+│   |   │   ├── logGrava.js
+│   |   │   ├── tokenUtils.js
+│   |   │   ├── validaDados.js
+│   |   │   └── verificarPermissoes.js
+│   |   ├── workers/
+│   |   │   ├── classificadorWorker.js
+│   |   │   └── mineracaoWorker.js
 │   |   ├── app.js
 │   |   ├── prisma.jsc
 │   |   ├── server.js
 │   |   └── swaggerConfig.js
-│   └── .env
+│   │── .env
+│   │── nodemon.worker.json
+│   │── package-lock.json
+│   └── package.json
 ```
 
 **Estrutura (WEB):**
@@ -244,6 +269,7 @@ DSM-G03-PI6-2026-2/
 │   |   │   │   ├── dashboard/
 │   |   │   │   │   └── page.tsx
 │   |   │   │   ├── gestores/
+│   |   │   │   ├── mineracao/
 │   |   │   │   ├── perfil/
 │   |   │   │   ├── tiposChamados/
 │   |   │   │   ├── unidades/
@@ -274,19 +300,27 @@ DSM-G03-PI6-2026-2/
 │   │   └── page.tsx
 │   │── lib/
 │   |   ├── api.ts
+│   |   ├── atividade-solicitacao-service.ts
 │   |   ├── chamado-service.ts
 │   |   ├── dashboard-service.ts
 │   |   ├── departamento-service.ts
 │   |   ├── equipe-service.ts
 │   |   ├── gestor-service.ts
 │   |   ├── gestor-unidade-service.ts
+│   |   ├── historico-service.ts
+│   |   ├── mineracao-service.ts
 │   |   ├── pessoa-service.ts
 │   |   ├── solicitacao-service.ts
+│   |   ├── status-service.ts
 │   |   ├── tecnico-service.ts
 │   |   ├── tipoSuporte-service.ts
 │   |   └── unidade-service.ts
+│   │── utils/
+│   |   └── dateUtils.ts
+│   │── .env.local
 │   │── middleware.ts
-│   └── .env.local
+│   │── package-lock.json
+│   └── package.json
 ```
 
 **Estrutura (MOBILE):**
@@ -294,33 +328,38 @@ DSM-G03-PI6-2026-2/
 ```
 DSM-G03-PI6-2026-2/
 ├── MOBILE/
-│   └── lib/
-│       ├── models/
-│       │   ├── call_model.dart
-│       │   ├── theme_model.dart
-│       │   ├── user_model.dart
-│       │   ├── user_provider.dart
-│       │   ├── user_type.dart
-│       │   └── user.dart
-│       ├── screens/
-│       │       ├── citizen/
-│       │       │   ├── c_calls_screen.dart
-│       │       │   ├── c_home_screen.dart
-│       │       │   ├── manual_screen.dart
-│       │       │   └── new_call_screen.tsx
-│       │       ├── shered/
-│       │       │   ├── components/
-│       │       │   │   └── bottom_nav_bar.dart
-│       │       │   ├── create_request_screen.dart
-│       │       │   ├── login_screen.dart
-│       │       │   └── profile_settings_screen.tsx
-│       │       └── technician/
-│       │           ├── call_activities_screen.dart
-│       │           ├── new_call_description_screen.dart
-│       │           ├── t_calls_screen.dart
-│       │           └── t_home_screen.tsx
-│       ├── config.dart
-│       └── main.dart
+│   ├── lib/
+│   |   ├── models/
+│   |   │   ├── call_model.dart
+│   |   │   ├── theme_model.dart
+│   |   │   ├── user_model.dart
+│   |   │   ├── user_provider.dart
+│   |   │   ├── user_type.dart
+│   |   │   └── user.dart
+│   |   ├── screens/
+│   |   │       ├── citizen/
+│   |   │       │   ├── c_calls_screen.dart
+│   |   │       │   ├── c_home_screen.dart
+│   |   │       │   ├── call_activities_screen.dart
+│   |   │       │   ├── manual_screen.dart
+│   |   │       │   └── new_call_screen.tsx
+│   |   │       ├── shered/
+│   |   │       │   ├── components/
+│   |   │       │   │   └── bottom_nav_bar.dart
+│   |   │       │   ├── create_request_screen.dart
+│   |   │       │   ├── login_screen.dart
+│   |   │       │   └── profile_settings_screen.tsx
+│   |   │       └── technician/
+│   |   │           ├── call_activities_screen.dart
+│   |   │           ├── new_call_description_screen.dart
+│   |   │           ├── t_calls_screen.dart
+│   |   │           └── t_home_screen.tsx
+│   |   ├── screens/
+│   |   │   ├── api_client.dart
+│   |   │   └── auth_service.dart
+│   |   ├── config.dart
+│   |   └── main.dart
+│   └── pubspec.yaml
 ```
 
 ## 📋 Pré-requisitos
@@ -329,6 +368,9 @@ Para o funcionamento pleno do site é necessário:
 
 * Um navegador com suporte a JavaScript e acesso à internet.
 * Ter o banco de dados PostGreSQL instalado localmente ou acessível na nuvem (ajustes no SGBD podem ser necessários conforme o ambiente).
+* Ter o Node.js instalada na máquina onde será hospedada a API e a WEB.
+* Ter o Python instalada na máquina onde será hospedada a API.
+* Ter o RabbitMQ instalado na máquina onde será hospedada a API.
 
 <br>
 
@@ -336,7 +378,7 @@ Para o funcionamento pleno do site é necessário:
 
 1. Baixe os arquivos e pastas deste repositório e coloque-os em uma pasta local.
 2. Certifique-se de estar conectado à internet.
-3. Ative o JavaScript em seu navegador.
+3. Ative o JavaScript em seu navegador caso não esteja ativo.
 4. Na pasta API execute: (npm install)
 5. Depois, ainda na pasta, crie o arquivo (.env) se baseando no (.exemple-env)
 6. Configure nele o acesso ao banco de dados
@@ -345,18 +387,23 @@ Para o funcionamento pleno do site é necessário:
 9. Copie o hash retornado
 10. Acesse o seu BD pelo terminal ou PgAdm para inserir um usuário Administrado do sistema
 11. Execute a Query no BD:  insert into "Administrador" ("AdministradorUsuario", "AdministradorSenha") values ('USUARIO', 'hashdasenhagerado');
-12. Execute a API: npm start
-13. Na pasta de WEB/web-next execute: (npm install)
-14. Depois, ainda na pasta, crie o arquivo (.env) se baseando no (.exemple-env)
-15. Depois execute para testes locais: npm run dev
-16. Caso queira gerar a versão ja compilada, execute: npm run build -> npm start
-17. Acesse na URL: http://seuipoulocalhost:porta/admin
-18. Entre com as credenciais de ADM
-19. Crie uma unidade e gestor e depois acesse com as credencias do mesmo: http://seuipoulocalhost:porta/gestor
-20. Para o mobile, acesse a pasta Mobile
-21. É preciso ter o SDK da versão correta configurado na máquina
-22. Execute: flutter pub get
-23. Depois, com algum emulador conectado, execute: flutter run
+12. Execute a API com: npm start
+13. Execute o processo de classificação com: npm run start:classificador-worker
+14. Execute o processo de mineração de dados com: npm run start:mineracao-worker
+15. Na pasta de WEB/web-next execute: (npm install)
+16. Depois, ainda na pasta, crie o arquivo (.env) se baseando no (.exemple-env)
+17. Depois execute para testes locais: npm run dev
+18. Caso queira gerar a versão ja compilada, execute: npm run build -> npm start
+19. Acesse na URL: http://seuipoulocalhost:porta/admin/login
+20. Entre com as credenciais de ADM
+21. Crie uma unidade e gestor e depois acesse com as credencias do mesmo: http://seuipoulocalhost:porta/gestor
+22. Para o mobile, acesse a pasta Mobile
+23. É preciso ter o SDK da versão correta configurado na máquina ou fazer o uso do fvm
+24. Crie o arquivo detro da pasta lib (config.dart), se baseando no arquivo (congig-exemple.dart)
+25. Altere o baseUrl para a rota correta da API configurada
+26. Execute: flutter pub get
+27. Depois, com algum emulador conectado, execute: flutter run
+28. Caso queira gerar o APK, execute: flutter build apk --release --split-per-abi
 
 <br>
 
@@ -364,7 +411,7 @@ Para o funcionamento pleno do site é necessário:
 
 * **[Cláudio de Melo Júnior](https://github.com/Claudio-Fatec)** — Documentação, Treinamento Modelo IA;
 * **[João Vitor Nicolau](https://github.com/Joao-Vitor-Nicolau-dos-Santos)** — Desenvolvimento Mobile;
-* **[Luís Pedro Dutra Carrocini](https://github.com/luis-pedro-dutra-carrocini)** — Desenvolvimento API/BD, Desenvolvimento Web;
+* **[Luís Pedro Dutra Carrocini](https://github.com/luis-pedro-dutra-carrocini)** — Desenvolvimento API/BD, Desenvolvimento Mensageria, Desenvolvimento Web;
 
 <br>
 
