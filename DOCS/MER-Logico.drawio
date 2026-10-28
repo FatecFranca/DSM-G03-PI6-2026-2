@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram id="e1HI57Hr3UIW-kVYWW-Q" name="Page-1">
-    <mxGraphModel dx="4266" dy="2116" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1855" dy="622" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -370,7 +370,7 @@
         <mxCell id="160" parent="154" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontStyle=1" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-weight: 400;&quot;&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;NotificacaoMensagem&lt;/span&gt;&amp;nbsp;- TEXT&lt;/span&gt;" vertex="1">
           <mxGeometry height="30" width="380" y="220" as="geometry" />
         </mxCell>
-        <mxCell id="161" parent="154" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontStyle=1" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-weight: 400;&quot;&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;Notificacao&lt;/span&gt;Data - DATATIME&lt;/span&gt;" vertex="1">
+        <mxCell id="161" parent="154" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontStyle=1" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-weight: 400;&quot;&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;Notificacao&lt;/span&gt;Data - DATETIME&lt;/span&gt;" vertex="1">
           <mxGeometry height="30" width="380" y="250" as="geometry" />
         </mxCell>
         <mxCell id="164" parent="154" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;fontStyle=1" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-weight: 400;&quot;&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;Notificacao&lt;/span&gt;Nivel - ENUM(BAIXA, NORMAL, ALTA, URGENTE)&lt;/span&gt;" vertex="1">
