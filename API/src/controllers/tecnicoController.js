@@ -377,6 +377,8 @@ class TecnicoController {
                 tecnico.TecnicoId
             );
 
+            //console.log('Tecnico logado');
+
             return res.status(200).json({
                 message: 'Login realizado com sucesso',
                 data: {
@@ -956,7 +958,11 @@ class TecnicoController {
             // --- Gravar log de criação
             const LogAcao = 'ALTERARTECNICO';
             LogDetalhe = LogDetalhe + ' Dados antes da atualização: (' + JSON.stringify(tecnicoAlterarSemSenha) + '), dados depois da atualização: (' + JSON.stringify(tecnicoSemSenha) + ')';
-            await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, tecnicoSemSenha.PessoaId);
+            if (usuarioLogado.usuarioTipo === 'GESTOR'){
+                await gravarLog(gestorLogado.GestorId, LogAcao, 'GESTOR', LogDetalhe, tecnicoSemSenha.TecnicoId);
+            } else {
+                await gravarLog(tecnicoSemSenha.TecnicoId, LogAcao, 'TECNICO', LogDetalhe, tecnicoSemSenha.TecnicoId);
+            }
             // ---
 
             return res.status(200).json({
@@ -1184,7 +1190,7 @@ class TecnicoController {
             // Remover senha do retorno
             const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
 
-            console.log('Login do técnico realizado com sucesso:', tecnicoSemSenha);
+            //console.log('Login do técnico realizado com sucesso:', tecnicoSemSenha);
 
             return res.status(200).json({
                 data: tecnicoSemSenha
@@ -1195,6 +1201,61 @@ class TecnicoController {
             return res.status(500).json({ error: 'Erro ao buscar técnico' });
         }
     }
+
+    async buscarProprioTecnicoPorId(req, res) {
+        try {
+            const usuarioLogado = req.usuario;
+
+            if (usuarioLogado.usuarioTipo !== 'TECNICO') {
+            return res.status(403).json({ error: 'Este endpoint é apenas para técnicos' });
+            }
+
+            const tecnico = await prisma.tecnico.findUnique({
+            where: { TecnicoId: usuarioLogado.usuarioId },
+            include: {
+                Unidade: {
+                select: {
+                    UnidadeId: true,
+                    UnidadeNome: true,
+                    UnidadeStatus: true,
+                },
+                },
+                Departamento: {
+                select: {
+                    DepartamentoId: true,
+                    DepartamentoNome: true,
+                    DepartamentoStatus: true,
+                },
+                },
+            },
+            });
+
+            if (!tecnico) {
+            return res.status(404).json({ error: 'Técnico não encontrado' });
+            }
+            if (tecnico.TecnicoStatus !== 'ATIVO') {
+            return res.status(403).json({ error: 'Conta inativa ou bloqueada' });
+            }
+            if (tecnico.Unidade.UnidadeStatus !== 'ATIVA') {
+            return res.status(403).json({ error: 'Unidade inativa ou bloqueada' });
+            }
+            if (tecnico.Departamento.DepartamentoStatus !== 'ATIVO') {
+            return res.status(403).json({ error: 'Departamento inativo ou bloqueado' });
+            }
+
+            const { TecnicoSenha: _, ...tecnicoSemSenha } = tecnico;
+
+            return res.status(200).json({
+            data: {
+                usuario: tecnicoSemSenha,
+                tipo: 'TECNICO',
+            },
+            });
+        } catch (error) {
+            console.error('Erro no /me do técnico:', error);
+            return res.status(500).json({ error: 'Erro ao buscar dados do técnico' });
+        }
+        }
 
     // Alterar apenas status do técnico (apenas gestor)
     async alterarStatusTecnico(req, res) {

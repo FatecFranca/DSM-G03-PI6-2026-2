@@ -86,18 +86,28 @@ class PessoaController {
                 }
             });
 
-            // Limpar tokens antigos expirados/revogados desta pessoa (higiene)
-            /*
+            // Limpar tokens antigos:
+            // - expirados há mais de 1 dia
+            // - revogados há mais de 7 dias (janela de detecção de reuso)
             await prisma.refreshToken.deleteMany({
                 where: {
-                    PessoaId: pessoa.PessoaId,
+                    RefreshUsuarioId: pessoa.PessoaId,
+                    RefreshUsuarioVinculo: 'PESSOA',
                     OR: [
-                        { RefreshTokenExpiraEm: { lt: new Date() } },
-                        { RefreshTokenRevogado: true }
+                        {
+                            RefreshTokenExpiraEm: {
+                                lt: new Date(Date.now() - 24 * 60 * 60 * 1000)   // expirados há >1 dia
+                            }
+                        },
+                        {
+                            RefreshTokenRevogado: true,
+                            RefreshTokenDtUso: {
+                                lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)  // revogados há >7 dias
+                            }
+                        }
                     ]
                 }
             });
-            */
 
             const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
 
@@ -114,7 +124,7 @@ class PessoaController {
                 tipo: 'PESSOA'
             }
 
-            console.log('Login realizado com sucesso para pessoa:', data);
+            //console.log('Login realizado com sucesso para pessoa:', data);
             return res.status(200).json({
                 message: 'Login realizado com sucesso',
                 data: data
@@ -739,6 +749,55 @@ class PessoaController {
             console.error('Erro ao buscar pessoa:', error);
             return res.status(500).json({ error: 'Erro ao buscar pessoa' });
         }
+    }
+
+    // Retorna os dados do próprio usuário logado (para restaurar sessão no app)
+    async buscarPropriaPessoaPorId(req, res) {
+    try {
+        const usuarioLogado = req.usuario;
+
+        if (usuarioLogado.usuarioTipo !== 'PESSOA') {
+        return res.status(403).json({ error: 'Este endpoint é apenas para pessoas' });
+        }
+
+        const pessoa = await prisma.pessoa.findUnique({
+        where: { PessoaId: usuarioLogado.usuarioId },
+        include: {
+            Unidade: {
+            select: {
+                UnidadeId: true,
+                UnidadeNome: true,
+                UnidadeStatus: true,
+            },
+            },
+        },
+        });
+
+        if (!pessoa) {
+        return res.status(404).json({ error: 'Pessoa não encontrada' });
+        }
+
+        // Verificações de status — se a conta foi desativada, a sessão deve cair
+        if (pessoa.PessoaStatus !== 'ATIVA') {
+        return res.status(403).json({ error: 'Conta inativa ou bloqueada' });
+        }
+        if (pessoa.Unidade.UnidadeStatus !== 'ATIVA') {
+        return res.status(403).json({ error: 'Unidade inativa ou bloqueada' });
+        }
+
+        const { PessoaSenha: _, ...pessoaSemSenha } = pessoa;
+
+        return res.status(200).json({
+        data: {
+            usuario: pessoaSemSenha,
+            tipo: 'PESSOA',
+            // Não devolvemos token nem refreshToken aqui — o cliente já os tem
+        },
+        });
+    } catch (error) {
+        console.error('Erro no /me da pessoa:', error);
+        return res.status(500).json({ error: 'Erro ao buscar dados do usuário' });
+    }
     }
 
     // Alterar apenas status da pessoa (apenas gestor)

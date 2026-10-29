@@ -29,28 +29,6 @@ class _THomeScreenState extends State<THomeScreen> {
     setState(() => isLoading = true);
 
     try {
-      final themeModel = Provider.of<ThemeModel>(context, listen: false);
-      final user = themeModel.currentUser;
-
-      if (user == null || user.token == null) return;
-
-      // Monta a URL com o filtro de período
-      /*
-      final url = Uri.parse(
-        '${AppConfig.baseUrl}/api/chamado/estatisticas?periodo=$selectedPeriod',
-      );
-
-      final response = await http
-          .get(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${user.token}',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-      */
-
       final response = await ApiClient.instance.get(
         '/api/chamado/estatisticas?periodo=$selectedPeriod',
       );
@@ -60,6 +38,8 @@ class _THomeScreenState extends State<THomeScreen> {
         setState(() {
           stats = decoded['data'];
         });
+      } else {
+        debugPrint('⚠️ Estatísticas retornaram ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('💥 Erro Stats: $e');

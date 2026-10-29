@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'auth_service.dart';
 
+import 'package:flutter/material.dart';
+
+
 class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
@@ -146,12 +149,21 @@ class ApiClient {
   }
 
   Future<bool> _refreshCompartilhado() async {
-    if (_refreshEmAndamento != null) return _refreshEmAndamento!;
+    debugPrint('🔄 _refreshCompartilhado chamado');
 
+    if (_refreshEmAndamento != null) {
+      debugPrint('🔄 Já existe refresh em andamento — aguardando');
+      return _refreshEmAndamento!;
+    }
+
+    debugPrint('🔄 Iniciando novo refresh');
     _refreshEmAndamento = _auth.tentarRefresh().whenComplete(() {
+      debugPrint('🔄 Refresh completou');
       _refreshEmAndamento = null;
     });
 
-    return _refreshEmAndamento!;
+    final resultado = await _refreshEmAndamento!;
+    debugPrint('🔄 Resultado do refresh: $resultado');
+    return resultado;
   }
 }

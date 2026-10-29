@@ -119,6 +119,8 @@ router.use(authMiddleware);
  */
 router.get('/', pessoaController.listarPessoas);
 
+router.get('/me', pessoaController.buscarPropriaPessoaPorId);
+
 /**
  * @openapi
  * /pessoas/{id}:

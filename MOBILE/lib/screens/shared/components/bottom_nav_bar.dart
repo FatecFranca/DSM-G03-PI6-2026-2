@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:CDCP/services/auth_service.dart';
 
 class BottomNavBarScreen extends StatefulWidget {
   const BottomNavBarScreen({super.key});
@@ -44,12 +45,22 @@ class _BottomNavBarScreenState extends State<BottomNavBarScreen> {
         const TCallsScreen(),
         user != null
             ? ProfileSettingsScreen(user: user)
-            : const PlaceholderScreen(title: 'Perfil', icon: Icons.person),
+            : const _SessaoInvalidaScreen(),
       ];
       navItems = const [
         _NavItemConfig(0, Icons.home_outlined, Icons.home_rounded, 'Início'),
-        _NavItemConfig(1, Icons.list_alt_outlined, Icons.list_alt_rounded, 'Chamados'),
-        _NavItemConfig(2, Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
+        _NavItemConfig(
+          1,
+          Icons.list_alt_outlined,
+          Icons.list_alt_rounded,
+          'Chamados',
+        ),
+        _NavItemConfig(
+          2,
+          Icons.person_outline_rounded,
+          Icons.person_rounded,
+          'Perfil',
+        ),
       ];
     } else {
       // CIDADÃO: 4 ITENS (0, 1, 2, 3)
@@ -59,14 +70,33 @@ class _BottomNavBarScreenState extends State<BottomNavBarScreen> {
         const ManualScreen(),
         user != null
             ? ProfileSettingsScreen(user: user)
-            : const PlaceholderScreen(title: 'Perfil', icon: Icons.person),
+            : const _SessaoInvalidaScreen(),
       ];
       navItems = const [
-        _NavItemConfig(0, Icons.grid_view_outlined, Icons.grid_view_rounded, 'Início'),
-        _NavItemConfig(1, Icons.confirmation_number_outlined,
-            Icons.confirmation_number_rounded, 'Chamados'),
-        _NavItemConfig(2, Icons.help_center_outlined, Icons.help_center_rounded, 'Manual'),
-        _NavItemConfig(3, Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
+        _NavItemConfig(
+          0,
+          Icons.grid_view_outlined,
+          Icons.grid_view_rounded,
+          'Início',
+        ),
+        _NavItemConfig(
+          1,
+          Icons.confirmation_number_outlined,
+          Icons.confirmation_number_rounded,
+          'Chamados',
+        ),
+        _NavItemConfig(
+          2,
+          Icons.help_center_outlined,
+          Icons.help_center_rounded,
+          'Manual',
+        ),
+        _NavItemConfig(
+          3,
+          Icons.person_outline_rounded,
+          Icons.person_rounded,
+          'Perfil',
+        ),
       ];
     }
 
@@ -77,10 +107,7 @@ class _BottomNavBarScreenState extends State<BottomNavBarScreen> {
 
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: children,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: children),
       bottomNavigationBar: _buildModernNavBar(cs, navItems, isTecnico),
     );
   }
@@ -102,7 +129,10 @@ class _BottomNavBarScreenState extends State<BottomNavBarScreen> {
             decoration: BoxDecoration(
               color: cs.surface.withOpacity(0.8),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1.5,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.15),
@@ -140,8 +170,7 @@ class _BottomNavBarScreenState extends State<BottomNavBarScreen> {
           ),
 
           // Botão flutuante só para cidadão
-          if (!isTecnico)
-            Positioned(bottom: 45, child: _buildAddButton(cs)),
+          if (!isTecnico) Positioned(bottom: 45, child: _buildAddButton(cs)),
         ],
       ),
     );
@@ -224,12 +253,16 @@ class _BottomNavBarScreenState extends State<BottomNavBarScreen> {
               curve: Curves.easeInOut,
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isSelected ? cs.primary.withOpacity(0.12) : Colors.transparent,
+                color: isSelected
+                    ? cs.primary.withOpacity(0.12)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 isSelected ? activeIcon : icon,
-                color: isSelected ? cs.primary : cs.onSurfaceVariant.withOpacity(0.6),
+                color: isSelected
+                    ? cs.primary
+                    : cs.onSurfaceVariant.withOpacity(0.6),
                 size: 24,
               ),
             ),
@@ -296,6 +329,74 @@ class PlaceholderScreen extends StatelessWidget {
                 style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessaoInvalidaScreen extends StatelessWidget {
+  const _SessaoInvalidaScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      backgroundColor: cs.surface,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 72,
+                  color: cs.primary.withOpacity(0.5),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Sessão inválida',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Não foi possível recuperar seus dados. '
+                  'Faça login novamente para continuar.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    AuthService.instance.logout();
+                  },
+                  icon: const Icon(Icons.login_rounded),
+                  label: const Text('Fazer login novamente'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

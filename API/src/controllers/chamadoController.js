@@ -26,7 +26,7 @@ class ChamadoController {
             // Aceita 0 dias com problema 20260913
             //console.log('ChamadoDiasComProblema = ', ChamadoDiasComProblema);
             if (isNaN(parseInt(ChamadoDiasComProblema)) || parseInt(ChamadoDiasComProblema) < 0) {
-                console.log('Aqui');
+                //console.log('Aqui');
                 return res.status(400).json({ error: 'Dias com problemas deve ser maior ou igual a um' });
             }
 
@@ -519,7 +519,7 @@ class ChamadoController {
             }
 
             // ========== PROCESSAR RECLASSIFICAÇÃO EM BACKGROUND ==========
-            console.log('precisaReclassificar = ' + precisaReclassificar + ' dadosParaReclassificacao = ' + dadosParaReclassificacao);
+            //console.log('precisaReclassificar = ' + precisaReclassificar + ' dadosParaReclassificacao = ' + dadosParaReclassificacao);
             if (precisaReclassificar && dadosParaReclassificacao) {
 
                 // Registra histórico do chamado (GESTOR/TECNICO)
@@ -542,11 +542,11 @@ class ChamadoController {
                     }
                 });
 
-                console.log(`🔄 Iniciando reclassificação em background para chamado ${chamadoId}...`);
+                //console.log(`🔄 Iniciando reclassificação em background para chamado ${chamadoId}...`);
 
                 // ✅ Usar o serviço com RabbitMQ
                 processarClassificacaoEmBackground(chamadoId, dadosParaReclassificacao).catch(error => {
-                    console.error(`Erro ao reclassificar chamado ${chamadoId} em background:`, error);
+                    //console.error(`Erro ao reclassificar chamado ${chamadoId} em background:`, error);
                 });
             } else {
 
@@ -587,7 +587,7 @@ class ChamadoController {
             /* // Antigo
             // ========== PROCESSAR RECLASSIFICAÇÃO EM BACKGROUND ==========
             if (precisaReclassificar && dadosParaReclassificacao) {
-                console.log(`🔄 Iniciando reclassificação em background para chamado ${chamadoId}...`);
+                //console.log(`🔄 Iniciando reclassificação em background para chamado ${chamadoId}...`);
 
                 processarClassificacaoEmBackground(chamadoId, dadosParaReclassificacao).catch(error => {
                     console.error(`Erro ao reclassificar chamado ${chamadoId} em background:`, error);
@@ -1297,7 +1297,7 @@ class ChamadoController {
             // Registra histórico de chamado indicando que foi alterado o status do chamado
             let HistChamadoDescricao = '';
             let HistChamadoDescricaoPessoa = '';
-            console.log('ChamadoStatus = ', ChamadoStatus);
+            //console.log('ChamadoStatus = ', ChamadoStatus);
             switch (ChamadoStatus) {
                 case 'PENDENTE':
                     if (chamado.ChamadoStatus === 'PROCESSAMENTO') {

@@ -362,7 +362,7 @@ model ClusterUrgencia {
 model RefreshToken {
   RefreshTokenId        String    @id @default(uuid())
   RefreshTokenHash      String    @unique @db.VarChar(255)
-  RefreshUsuarioId      String
+  RefreshUsuarioId      String    // ID da PESSOA/TECNICO/GESTOR/ADMINISTRADOR
   RefreshUsuarioVinculo String    @db.VarChar(20) // PESSOA/TECNICO/GESTOR/ADMINISTRADOR
   RefreshTokenExpiraEm  DateTime
   RefreshTokenRevogado  Boolean   @default(false)

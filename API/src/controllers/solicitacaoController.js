@@ -420,7 +420,7 @@ class SolicitacaoController {
     async buscarSolicitacaoPorId(req, res) {
         try {
             let id = req.params.id;
-            console.log('id = ', id);
+            //console.log('id = ', id);
             const usuarioLogado = req.usuario;
 
             // Verificar se o usuário é GESTOR ou ADMINISTRADOR

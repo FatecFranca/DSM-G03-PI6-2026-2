@@ -41,7 +41,7 @@ class ClassificadorWorker {
 
       const timeout = setTimeout(() => {
         reject(new Error('Timeout ao inicializar classificador'));
-      }, 30000);
+      }, 60000);
 
       this.classificador.once('message', (message) => {
         clearTimeout(timeout);

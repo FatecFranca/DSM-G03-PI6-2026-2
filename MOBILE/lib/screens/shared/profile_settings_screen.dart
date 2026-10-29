@@ -1,6 +1,6 @@
 import 'dart:convert';
 //import 'package:CDCP/config.dart';
-import 'package:CDCP/screens/shared/login_screen.dart';
+//import 'package:CDCP/screens/shared/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +10,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../models/theme_model.dart';
 import '../../models/user_model.dart';
 import '../../services/api_client.dart';
+import '../../services/auth_service.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   final UserProfile user;
@@ -46,26 +47,39 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     return '';
   }
 
-  Future<void> _editInfo(String label, String currentValue, String fieldName) async {
-    final TextEditingController controller = TextEditingController(text: currentValue);
+  Future<void> _editInfo(
+    String label,
+    String currentValue,
+    String fieldName,
+  ) async {
+    final TextEditingController controller = TextEditingController(
+      text: currentValue,
+    );
     //final themeModel = Provider.of<ThemeModel>(context, listen: false);
     //final token = themeModel.currentUser?.token;
-    final bool isTelefone = fieldName == 'PessoaTelefone' || fieldName == 'TecnicoTelefone';
-    final bool isEmail = fieldName == 'PessoaEmail' || fieldName == 'TecnicoEmail';
-    
+    final bool isTelefone =
+        fieldName == 'PessoaTelefone' || fieldName == 'TecnicoTelefone';
+    final bool isEmail =
+        fieldName == 'PessoaEmail' || fieldName == 'TecnicoEmail';
+
     // Determinar qual campo enviar baseado no tipo de usuário
     final String role = widget.user.role.toUpperCase();
-    final String campoEnvio = (role == 'PESSOA' || role == 'CIDADAO') 
+    final String campoEnvio = (role == 'PESSOA' || role == 'CIDADAO')
         ? (isEmail ? 'PessoaEmail' : 'PessoaTelefone')
         : (isEmail ? 'TecnicoEmail' : 'TecnicoTelefone');
 
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Editar $label', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Editar $label',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
         content: TextField(
           controller: controller,
-          keyboardType: isTelefone ? TextInputType.phone : TextInputType.emailAddress,
+          keyboardType: isTelefone
+              ? TextInputType.phone
+              : TextInputType.emailAddress,
           inputFormatters: [
             if (isTelefone) FilteringTextInputFormatter.digitsOnly,
             if (isTelefone) maskFormatter,
@@ -77,7 +91,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
@@ -106,7 +123,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         }
 
         // ✅ Montar o body com o campo correto baseado no tipo de usuário
-        final Map<String, dynamic> requestBody = { campoEnvio: newValue };
+        final Map<String, dynamic> requestBody = {campoEnvio: newValue};
 
         //final url = Uri.parse('${AppConfig.baseUrl}/api/$endpoint/${widget.user.id}');
 
@@ -127,7 +144,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         );
         */
 
-        final response = await ApiClient.instance.put('/api/$endpoint/${widget.user.id}', body: requestBody);
+        final response = await ApiClient.instance.put(
+          '/api/$endpoint/${widget.user.id}',
+          body: requestBody,
+        );
 
         if (response.statusCode == 200 || response.statusCode == 204) {
           setState(() {
@@ -149,13 +169,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           String errorMessage = 'Erro ao atualizar';
           try {
             final errorData = jsonDecode(response.body);
-            errorMessage = errorData['error'] ?? 
-                          errorData['message'] ?? 
-                          'Erro ${response.statusCode}';
+            errorMessage =
+                errorData['error'] ??
+                errorData['message'] ??
+                'Erro ${response.statusCode}';
           } catch (e) {
             errorMessage = 'Erro ${response.statusCode}';
           }
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(errorMessage),
@@ -206,7 +227,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       radius: 45,
                       backgroundColor: cs.onPrimary.withOpacity(0.2),
                       child: Text(
-                        widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : '?',
+                        widget.user.name.isNotEmpty
+                            ? widget.user.name[0].toUpperCase()
+                            : '?',
                         style: GoogleFonts.inter(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -238,10 +261,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               IconButton(
                 icon: const Icon(Icons.logout_rounded),
                 color: cs.onPrimary,
-                onPressed: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                ),
+                onPressed: () async {
+                  debugPrint('🚪 Botão de logout clicado');
+                  await AuthService.instance.logout();
+                  debugPrint('🚪 logout() retornou');
+                },
               ),
             ],
           ),
@@ -259,15 +283,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   const SizedBox(height: 12),
                   _buildSettingsCard(themeModel, cs, fontSize),
                   const SizedBox(height: 32),
-                  Center(
-                    child: Text(
-                      'Versão 1.0.4 • Cláudio e CIA',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: cs.onSurface.withOpacity(0.4),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 100),
                 ],
               ),
@@ -291,8 +306,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Widget _buildProfileCard(ColorScheme cs, double fontSize) {
-    final bool isPessoa = widget.user.role.toUpperCase() == 'PESSOA' || 
-                          widget.user.role.toUpperCase() == 'CIDADAO';
+    final bool isPessoa =
+        widget.user.role.toUpperCase() == 'PESSOA' ||
+        widget.user.role.toUpperCase() == 'CIDADAO';
 
     return Container(
       decoration: BoxDecoration(
@@ -307,7 +323,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             widget.user.email,
             cs,
             fontSize,
-            onTap: () => _editInfo('Email', widget.user.email, isPessoa ? 'PessoaEmail' : 'TecnicoEmail'),
+            onTap: () => _editInfo(
+              'Email',
+              widget.user.email,
+              isPessoa ? 'PessoaEmail' : 'TecnicoEmail',
+            ),
           ),
           _buildDivider(cs),
           _buildDetailRow(
@@ -316,7 +336,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             widget.user.phone,
             cs,
             fontSize,
-            onTap: () => _editInfo('Telefone', widget.user.phone, isPessoa ? 'PessoaTelefone' : 'TecnicoTelefone'),
+            onTap: () => _editInfo(
+              'Telefone',
+              widget.user.phone,
+              isPessoa ? 'PessoaTelefone' : 'TecnicoTelefone',
+            ),
           ),
           _buildDivider(cs),
           _buildDetailRow(
@@ -340,7 +364,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             _buildDetailRow(
               Icons.person_outline,
               'Usuário',
-              widget.user.usuario.toString(), // Para técnico, cpfOrId contém o usuário
+              widget.user.usuario
+                  .toString(), // Para técnico, cpfOrId contém o usuário
               cs,
               fontSize,
             ),
@@ -350,7 +375,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     );
   }
 
-  Widget _buildSettingsCard(ThemeModel themeModel, ColorScheme cs, double fontSize) {
+  Widget _buildSettingsCard(
+    ThemeModel themeModel,
+    ColorScheme cs,
+    double fontSize,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
@@ -359,16 +388,24 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       child: Column(
         children: [
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 4,
+            ),
             leading: CircleAvatar(
               backgroundColor: cs.primary.withOpacity(0.1),
               child: Icon(
-                themeModel.isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                themeModel.isDark
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
                 color: cs.primary,
                 size: 20,
               ),
             ),
-            title: Text('Modo Escuro', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+            title: Text(
+              'Modo Escuro',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+            ),
             trailing: Switch.adaptive(
               value: themeModel.isDark,
               onChanged: (val) => themeModel.setThemeMode(
@@ -378,12 +415,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
           _buildDivider(cs),
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
             leading: CircleAvatar(
               backgroundColor: cs.secondary.withOpacity(0.1),
-              child: Icon(Icons.format_size_rounded, color: cs.secondary, size: 20),
+              child: Icon(
+                Icons.format_size_rounded,
+                color: cs.secondary,
+                size: 20,
+              ),
             ),
-            title: Text('Tamanho do Texto', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+            title: Text(
+              'Tamanho do Texto',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+            ),
             subtitle: Text(
               '${(themeModel.fontSizeScale * 100).toInt()}%',
               style: TextStyle(color: cs.primary),
@@ -391,9 +438,17 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildRoundBtn(Icons.remove, () => themeModel.setFontSize(themeModel.fontSizeScale - 0.2), cs),
+                _buildRoundBtn(
+                  Icons.remove,
+                  () => themeModel.setFontSize(themeModel.fontSizeScale - 0.2),
+                  cs,
+                ),
                 const SizedBox(width: 12),
-                _buildRoundBtn(Icons.add, () => themeModel.setFontSize(themeModel.fontSizeScale + 0.2), cs),
+                _buildRoundBtn(
+                  Icons.add,
+                  () => themeModel.setFontSize(themeModel.fontSizeScale + 0.2),
+                  cs,
+                ),
               ],
             ),
           ),
@@ -469,9 +524,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Widget _buildDivider(ColorScheme cs) => Divider(
-        height: 1,
-        indent: 60,
-        endIndent: 20,
-        color: cs.outlineVariant.withOpacity(0.3),
-      );
+    height: 1,
+    indent: 60,
+    endIndent: 20,
+    color: cs.outlineVariant.withOpacity(0.3),
+  );
 }

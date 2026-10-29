@@ -124,6 +124,8 @@ router.use(authMiddleware);
  */
 router.get('/', tecnicoController.listarTecnicos);
 
+router.get('/me', tecnicoController.buscarProprioTecnicoPorId);
+
 /**
  * @openapi
  * /tecnicos/{id}:
